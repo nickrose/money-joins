@@ -1,0 +1,538 @@
+<html>
+    <head>
+        <!--[if IE]><script language="javascript" type="text/javascript" src="./excanvas.min.js"></script><![endif]-->
+        <script language="javascript" type="text/javascript" src="./jquery.js"></script>
+        <script language="javascript" type="text/javascript" src="./jquery.flot.js"></script>
+    </head>
+    <body>
+
+<script>
+    $("<div id='tooltip'></div>").css({
+                                    position: "absolute",
+                                    display: "none",
+                                    border: "1px solid #fdd",
+                                    padding: "2px",
+                                    "background-color": "#fee",
+                                    opacity: 0.80
+                                  }).appendTo("body");
+                
+    series_settings = {
+        lines: { show: true },
+        points: { show: true }
+    };
+
+    grid_settings = { tickColor: '#ddd', hoverable: true };
+
+    xaxis_settings = {
+        tickFormatter: function(num, obj) { 
+                           if(num >= 1000*1000) {
+                               return parseFloat(num/(1000*1000)).toFixed(2) + 'M'; 
+                           }
+                           else {
+                               return parseInt(num/1000) + 'k'; 
+                           }
+                       }
+    };
+
+    yaxis_runtime_settings = {
+        tickFormatter: function(num, obj) { return (+num.toFixed(2)) + ' sec.'; }
+    };
+
+    yaxis_memory_settings = {
+        tickFormatter: function(num, obj) { return parseInt(num/1024/1024) + 'MiB'; }
+    };
+
+    legend_settings = {
+        position: 'nw',
+        backgroundOpacity: 0
+    };
+
+    runtime_settings = {
+        series: series_settings,
+        grid: grid_settings,
+        xaxis: xaxis_settings,
+        yaxis: yaxis_runtime_settings,
+        legend: legend_settings
+    };
+
+    memory_settings = {
+        series: series_settings,
+        grid: grid_settings,
+        xaxis: xaxis_settings,
+        yaxis: yaxis_memory_settings,
+        legend: legend_settings
+    };
+
+    __CHART_DATA_GOES_HERE__
+
+    function plot_chart(dataset, chart_container, choices_container, chart_settings, redraw_only = false) {
+        if(!redraw_only) {
+            // Set colors
+            var color = 0;
+            $.each(dataset, function(key, val) {
+                val.color = color;
+                color++;
+            });
+            
+            // Insert checkboxes 
+            $.each(dataset, function(key, val) {
+                checked = '';
+                if(default_programs_show.indexOf(val.program) > -1) {
+                    checked = 'checked';
+                }
+                
+                $(choices_container).append(
+                    "<li><input type='checkbox' value='" + key +"' name='" + val.program + "' " + checked + "></input>" +
+                    "<label for='id" + key + "'>" + val.label + "</label></li>");
+            });
+            
+            $(choices_container).find("input").change(plot_according_to_choices);
+        }
+        
+        function plot_according_to_choices() {
+            var data = [];
+            $(choices_container).find("input:checked").each(
+                function () {
+                    var key = $(this).attr("value");
+                    if (key && dataset[key]) {
+                        data.push(dataset[key]);
+                    }
+                }
+            );
+
+            $.plot(chart_container, data, chart_settings);
+            
+
+            $(chart_container).bind("plothover", function (event, pos, item) {
+                if (item) {
+                    var x = item.datapoint[0];
+                    var y = item.datapoint[1].toFixed(4) + "s";
+                    if(chart_settings == memory_settings) {
+                        y = (item.datapoint[1]/1024/1024).toFixed(2) + " MiB";
+                    }
+
+                    var load_factor = item.series.data[item.dataIndex][2]
+                    if(load_factor == 0.0) {
+                        load_factor = "unknown"
+                    }
+                    
+                    $("#tooltip").html("" + y + " ; " + x + 
+                                        "<br\>" + load_factor + " load factor" +
+                                        "<br\>" + item.series.label)
+                                    .css({top: item.pageY+5, left: item.pageX+5})
+                                    .fadeIn(200);
+                } else {
+                    $("#tooltip").hide();
+                }        
+            });
+        }
+
+        plot_according_to_choices();
+    }
+    
+    
+    function plot_all_charts(redraw_only = false) {
+        plot_chart(chart_data['insert_random_shuffle_range_runtime'], '#insert_random_shuffle_range_runtime', '#insert_random_shuffle_range_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_random_shuffle_range_runtime'], '#read_random_shuffle_range_runtime', '#read_random_shuffle_range_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_random_full_runtime'], '#insert_random_full_runtime', '#insert_random_full_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_random_full_reserve_runtime'], '#insert_random_full_reserve_runtime', '#insert_random_full_reserve_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_random_full_runtime'], '#read_random_full_runtime', '#read_random_full_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_miss_random_full_runtime'], '#read_miss_random_full_runtime', '#read_miss_random_full_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_random_full_after_delete_runtime'], '#read_random_full_after_delete_runtime', '#read_random_full_after_delete_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['iteration_random_full_runtime'], '#iteration_random_full_runtime', '#iteration_random_full_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['delete_random_full_runtime'], '#delete_random_full_runtime', '#delete_random_full_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_random_full_memory'], '#insert_random_full_memory', '#insert_random_full_memory_choices', memory_settings, redraw_only);
+        plot_chart(chart_data['insert_random_full_reserve_memory'], '#insert_random_full_reserve_memory', '#insert_random_full_reserve_memory_choices', memory_settings, redraw_only);
+        
+        plot_chart(chart_data['insert_small_string_runtime'], '#insert_small_string_runtime', '#insert_small_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_small_string_reserve_runtime'], '#insert_small_string_reserve_runtime', '#insert_small_string_reserve_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_small_string_runtime'], '#read_small_string_runtime', '#read_small_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_miss_small_string_runtime'], '#read_miss_small_string_runtime', '#read_miss_small_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_small_string_after_delete_runtime'], '#read_small_string_after_delete_runtime', '#read_small_string_after_delete_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['delete_small_string_runtime'], '#delete_small_string_runtime', '#delete_small_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_small_string_memory'], '#insert_small_string_memory', '#insert_small_string_memory_choices', memory_settings, redraw_only);
+        plot_chart(chart_data['insert_small_string_reserve_memory'], '#insert_small_string_reserve_memory', '#insert_small_string_reserve_memory_choices', memory_settings, redraw_only);
+
+        plot_chart(chart_data['insert_string_runtime'], '#insert_string_runtime', '#insert_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_string_reserve_runtime'], '#insert_string_reserve_runtime', '#insert_string_reserve_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_string_runtime'], '#read_string_runtime', '#read_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_miss_string_runtime'], '#read_miss_string_runtime', '#read_miss_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['read_string_after_delete_runtime'], '#read_string_after_delete_runtime', '#read_string_after_delete_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['delete_string_runtime'], '#delete_string_runtime', '#delete_string_runtime_choices', runtime_settings, redraw_only);
+        plot_chart(chart_data['insert_string_memory'], '#insert_string_memory', '#insert_string_memory_choices', memory_settings, redraw_only);
+        plot_chart(chart_data['insert_string_reserve_memory'], '#insert_string_reserve_memory', '#insert_string_reserve_memory_choices', memory_settings, redraw_only);
+    }
+
+    $(function () {
+        // Set global choices boxes
+        var i = 0;
+        for(var program in programs) {
+            checked = '';
+            if(default_programs_show.indexOf(program) > -1) {
+                checked = 'checked';
+            }
+            
+            $("#global_choices").append("<li><input type='checkbox' id='global_choice_" + i + "' " + 
+                                        checked + "></input>" + programs[program] + "</li>");
+            $("#global_choice_" + i).change({name: program}, function(event) {
+                $("input[name='" + event.data.name + "']").prop('checked', this.checked).change();
+            });
+            i++;
+        }
+        
+        // Set select all link
+        $("#global_select_all_none").append("<a href='javascript:void(0);' id='global_select_all'>all</a> ");
+        $("#global_select_all").click(function() {
+            $("input").prop('checked', true);
+            plot_all_charts(true);
+        });
+
+        // Set select none link
+        $("#global_select_all_none").append(" <a href='javascript:void(0);' id='global_select_none'>none</a>");
+        $("#global_select_none").click(function() {
+            $("input").prop('checked', false);
+            plot_all_charts(true);
+        });
+        
+        // Draw charts
+        plot_all_charts();
+    });
+    
+</script>
+
+<style>
+    div.global {
+        margin: auto;
+        width: 800px;
+    }
+    div.global_select_all_none {
+        text-align: center;
+    }
+    div.chart {
+        width: 750px;
+        height: 500px;
+    }
+    div.xaxis-title {
+        width: 750px;
+        text-align: center;
+        font-style: italic;
+        font-size: small;
+        color: #666;
+    }
+    .choices li {
+        margin-left: 5%;
+        display: inline-block;
+        width: 45%;
+    }
+</style>
+
+
+<div class="global">
+
+<h2>Global selection</h2>
+<ul class="choices" id="global_choices"></ul>
+<div class="global_select_all_none" id="global_select_all_none"></div>
+
+<h2>Integers</h2>
+
+<p>For the integers tests, we use hash maps with int64_t as key and int64_t as value.</p>
+
+
+
+<h3>Random shuffle inserts: execution time (integers)</h3>
+
+<p>Before the test, we generate a vector with the values [0, nb_entries) and shuffle this vector. 
+Then for each value k in the vector, we insert the key-value pair (k, 1) in the hash map.</p>
+
+<div class="chart" id="insert_random_shuffle_range_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_random_shuffle_range_runtime_choices"></ul>
+
+
+<h3>Random full inserts: execution time (integers)</h3>
+
+<p>Before the test, we generate a vector of nb_entries size where each value is randomly taken from an uniform random number generator from all possible positive values an int64_t can hold. 
+Then for each value k in the vector, we insert the key-value pair (k, 1) in the hash map.</p>
+
+<div class="chart" id="insert_random_full_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_random_full_runtime_choices"></ul>
+
+
+<h3>Random full inserts with reserve: execution time (integers)</h3>
+
+<p>Same as the random full inserts test but the reserve method of the hash map is called beforehand to avoid any rehash during the insertion. 
+It provides a fair comparison even if the growth factor of each hash map is different.</p>
+
+<div class="chart" id="insert_random_full_reserve_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_random_full_reserve_runtime_choices"></ul>
+
+
+<h3>Random full deletes: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random full insert test. 
+We then delete each key one by one in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="delete_random_full_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="delete_random_full_runtime_choices"></ul>
+
+
+<h3>Random shuffle reads: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random shuffle inserts test. 
+We then read each key-value pair in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="read_random_shuffle_range_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_random_shuffle_range_runtime_choices"></ul>
+
+
+<h3>Random full reads: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random full inserts test. 
+We then read each key-value pair in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="read_random_full_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_random_full_runtime_choices"></ul>
+
+<h3>Random full reads misses: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random full inserts test. 
+We then generate another vector of nb_entries random elements different from the inserted elements and 
+we try to search for these unknown elements in the hash map.</p>
+
+<div class="chart" id="read_miss_random_full_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_miss_random_full_runtime_choices"></ul>
+
+
+<h3>Random full reads after deleting half: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random full inserts test 
+before deleting half of these values randomly. We then try to read all the original values in a 
+different order which will lead to 50% hits and 50% misses.</p>
+
+<div class="chart" id="read_random_full_after_delete_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_random_full_after_delete_runtime_choices"></ul>
+
+
+
+<h3>Random full iteration: execution time (integers)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the random full inserts test. 
+We then use the hash map iterators to read all the key-value pairs.</p>
+
+<div class="chart" id="iteration_random_full_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="iteration_random_full_runtime_choices"></ul>
+
+
+
+<h3>Memory usage of random full inserts (integers)</h3>
+
+<p>Before the random full inserts benchmark finishes, we measure the memory that the hash map is using.</p>
+
+<div class="chart" id="insert_random_full_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_random_full_memory_choices"></ul>
+
+
+<h3>Memory usage of random full inserts with reserve (integers)</h3>
+
+<p>Before the random full inserts with reserve benchmark finishes, we measure the memory that the hash map is using. 
+The benchmark is similar to the one above but without measuring the memory fragmentation that the rehash process
+may cause.</p>
+
+<div class="chart" id="insert_random_full_reserve_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_random_full_reserve_memory_choices"></ul>
+
+
+
+
+
+
+
+
+
+<h2>Small strings</h2>
+<p>For the small string tests, we use hash maps with std::string as key and int64_t as value.</p>
+
+<p>Each string is a random generated string of 15 alphanumeric characters (+1 for the null terminator). A generated key may look like "ju1AOoeWT3LdJxL".<p>
+
+<h3>Inserts: execution time (small strings)</h3>
+
+<p>For each entry in the range [0, nb_entries), we generate a string as key and insert it with the value 1.</p>
+
+<div class="chart" id="insert_small_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_small_string_runtime_choices"></ul>
+
+
+<h3>Inserts with reserve: execution time (small strings)</h3>
+
+<p>Same as the inserts test but the reserve method of the hash map is called beforehand to avoid any rehash during the insertion. 
+It provides a fair comparison even if the growth factor of each hash map is different.</p>
+
+<div class="chart" id="insert_small_string_reserve_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_small_string_reserve_runtime_choices"></ul>
+
+
+<h3>Deletes: execution time (small strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the hash map as in the inserts test. 
+We then delete each key one by one in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="delete_small_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="delete_small_string_runtime_choices"></ul>
+
+
+<h3>Reads: execution time (small strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the hash map as in the inserts test. 
+We then read each key-value pair in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="read_small_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_small_string_runtime_choices"></ul>
+
+
+<h3>Reads misses: execution time (small strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the inserts test. 
+We then generate nb_entries strings different from the inserted elements and 
+we try to search for these unknown elements in the hash map.</p>
+
+<div class="chart" id="read_miss_small_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_miss_small_string_runtime_choices"></ul>
+
+
+<h3>Reads after deleting half: execution time (small strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the inserts test before 
+deleting half of these values randomly. We then try to read all the original values in a 
+different order which will lead to 50% hits and 50% misses.</p>
+
+<div class="chart" id="read_small_string_after_delete_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_small_string_after_delete_runtime_choices"></ul>
+
+
+<h3>Memory usage of inserts (small strings)</h3>
+
+<p>Before the inserts benchmark finishes, we measure the memory that the hash map is using.</p>
+
+<div class="chart" id="insert_small_string_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_small_string_memory_choices"></ul>
+
+
+<h3>Memory usage of inserts with reserve (small strings)</h3>
+
+<p>Before the inserts with reserve benchmark finishes, we measure the memory that the hash map is using.
+The benchmark is similar to the one above but without measuring the memory fragmentation that the rehash process
+may cause.</p>
+
+<div class="chart" id="insert_small_string_reserve_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_small_string_reserve_memory_choices"></ul>
+
+
+
+
+
+<h2>Strings</h2>
+<p>For the string tests, we use hash maps with std::string as key and int64_t as value.</p>
+
+<p>Each string is a random generated string of 50 alphanumeric characters (+1 for the null terminator). A generated key may look like "nv46iTRp7ur6UMbdgEkCHpoq7Qx7UU9Ta0u1ETdAvUb4LG6Xu6".<p>
+
+<h3>Inserts: execution time (strings)</h3>
+
+<p>We generate nb_entries strings as key and insert them with the value 1.</p>
+
+<div class="chart" id="insert_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_string_runtime_choices"></ul>
+
+
+<h3>Inserts with reserve: execution time (strings)</h3>
+
+<p>Same as the inserts test but the reserve method of the hash map is called beforehand to avoid any rehash during the insertion. 
+It provides a fair comparison even if the growth factor of each hash map is different.</p>
+
+<div class="chart" id="insert_string_reserve_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_string_reserve_runtime_choices"></ul>
+
+
+<h3>Deletes: execution time (strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the hash map as in the inserts test. 
+We then delete each key one by one in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="delete_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="delete_string_runtime_choices"></ul>
+
+
+<h3>Reads: execution time (strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the hash map as in the inserts test. 
+We then read each key-value pair in a different and random order than the one they were inserted.</p>
+
+<div class="chart" id="read_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_string_runtime_choices"></ul>
+
+
+<h3>Reads misses: execution time (strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the inserts test. 
+We then generate nb_entries strings different from the inserted elements and 
+we try to search for these unknown elements in the hash map.</p>
+
+<div class="chart" id="read_miss_string_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_miss_string_runtime_choices"></ul>
+
+
+<h3>Reads after deleting half: execution time (strings)</h3>
+
+<p>Before the test, we insert nb_entries elements in the same way as in the inserts test before deleting half of these values randomly. 
+We then try to read all the original values in a different order which will lead to 50% hits and 50% misses.</p>
+
+<div class="chart" id="read_string_after_delete_runtime"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="read_string_after_delete_runtime_choices"></ul>
+
+
+<h3>Memory usage of inserts (strings)</h3>
+
+<p>Before the inserts benchmark finishes, we measure the memory that the hash map is using.</p>
+
+<div class="chart" id="insert_string_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_string_memory_choices"></ul>
+
+
+<h3>Memory usage of inserts with reserve (strings)</h3>
+
+<p>Before the inserts with reserve benchmark finishes, we measure the memory that the hash map is using.
+The benchmark is similar to the one above but without measuring the memory fragmentation that the rehash process
+may cause.</p>
+
+<div class="chart" id="insert_string_reserve_memory"></div>
+<div class="xaxis-title">number of entries in hash table</div>
+<ul class="choices" id="insert_string_reserve_memory_choices"></ul>
+
+</div>
+
+</body>
+</html>
