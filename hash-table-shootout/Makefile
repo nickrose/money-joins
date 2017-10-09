@@ -1,21 +1,26 @@
 CXX=g++
-CXX_FLAGS=-std=c++14 -O3 -DNDEBUG -msse4.2 -mavx -mavx2 -march=native -mpclmul -funroll-loops
-CXX_FLAGS+=-I./third_party/clhash -I./third_party/smhasher/src -I./third_party/xxHash -I./third_party/farmhash/src
+CXX_FLAGS=-std=c++14 -O3 -g -ggdb -msse4.2 -mavx -mavx2 -march=native -mpclmul -funroll-loops
 
-HASHER=-DSIMPLEHASH
+# The hasher to use
+HASHER=-DCRCHASH
 
-CXX_FLAGS+=$(HASHER)
+# The third-party libs (includes only)
+THIRD_PARTY=-I./third_party/clhash -I./third_party/smhasher/src -I./third_party/xxHash -I./third_party/farmhash/src
+THIRD_PARTY+=-I./third_party/preshing/turf -I./third_party/preshing/junction
 
-BINARIES=  build/std_unordered_map              build/boost_unordered_map            \
-			build/google_sparse_hash_map         build/google_dense_hash_map          \
-			build/google_dense_hash_map_mlf_0_9  build/qt_qhash                       \
-			build/spp_sparse_hash_map            build/emilib_hash_map                \
-			build/ska_flat_hash_map              build/ska_flat_hash_map_power_of_two \
-			build/ska_flat_hash_map_mlf_0_9      build/ska_flat_hash_map_power_of_two_mlf_0_9 \
-			build/tsl_hopscotch_map              build/tsl_hopscotch_map_mlf_0_5      \
-			build/tsl_hopscotch_map_store_hash   build/tsl_robin_map                  \
-			build/tsl_robin_map_mlf_0_9          build/tsl_robin_map_store_hash       \
-			build/tsl_robin_pg_map               build/tsl_ordered_map                \
+CXX_FLAGS+=$(HASHER) $(THIRD_PARTY)
+
+BINARIES=   build/std_unordered_map              build/boost_unordered_map            \
+            build/google_sparse_hash_map         build/google_dense_hash_map          \
+            build/google_dense_hash_map_mlf_0_9  build/qt_qhash                       \
+            build/spp_sparse_hash_map            build/emilib_hash_map                \
+            build/ska_flat_hash_map              build/ska_flat_hash_map_power_of_two \
+            build/ska_flat_hash_map_mlf_0_9      build/ska_flat_hash_map_power_of_two_mlf_0_9 \
+            build/tsl_hopscotch_map              build/tsl_hopscotch_map_mlf_0_5      \
+            build/tsl_hopscotch_map_store_hash   build/tsl_robin_map                  \
+            build/tsl_robin_map_mlf_0_9          build/tsl_robin_map_store_hash       \
+            build/tsl_robin_pg_map               build/tsl_ordered_map                \
+            build/junction_map
 
 all: $(BINARIES)
 
@@ -96,3 +101,5 @@ build/tsl_array_map: src/tsl_array_map.cc src/template.c
 build/tsl_array_map_mlf_1_0: src/tsl_array_map_mlf_1_0.cc src/template.c
 	echo '$(CXX) $(CXX_FLAGS) -std=c++1z -Iarray-hash -o build/tsl_array_map_mlf_1_0 src/tsl_array_map_mlf_1_0.cc'
 
+build/junction_map: src/junction_map.cc src/template.c
+	$(CXX) $(CXX_FLAGS) -o build/junction_map src/junction_map.cc
