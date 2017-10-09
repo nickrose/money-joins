@@ -23,7 +23,7 @@ typedef junction::SingleMap_Leapfrog<std::int64_t, const std::int64_t*, Int64Key
 
 #define SETUP hash_t hash; hash_t str_hash;
 
-#define RESERVE_INT(size) 
+#define RESERVE_INT(size) hash.reserve(size)
 #define RESERVE_STR(size) 
 #define LOAD_FACTOR(map) map.load_factor()
 

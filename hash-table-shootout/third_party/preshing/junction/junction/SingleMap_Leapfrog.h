@@ -294,6 +294,18 @@ public:
         }
         return occ / (m_sizeMask + 1);
     }
+
+    void reserve(uint64_t nelems) {
+        // Destroy old table if there
+        destroyTable(m_cellGroups, m_sizeMask + 1);
+
+        // Create new one
+        nelems = turf::util::roundUpPowerOf2(ureg(nelems));
+        //fprintf(stderr, "Upsizing to %lu elems\n", nelems);
+        m_cellGroups = createTable(nelems);
+        m_sizeMask = nelems - 1;
+
+    }
 };
 
 } // namespace junction
