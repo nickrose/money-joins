@@ -4,7 +4,11 @@
 
 #include "common.h"
 
-typedef ska::flat_hash_map<KeyType, ValueType, Hasher> hash_t;
+struct prime_hash : public Hasher {
+    typedef ska::prime_number_hash_policy hash_policy;
+};
+
+typedef ska::flat_hash_map<KeyType, ValueType, prime_hash> hash_t;
 typedef ska::flat_hash_map<std::string, int64_t, std::hash<std::string>> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash; hash.max_load_factor(0.96); str_hash.max_load_factor(0.96);
