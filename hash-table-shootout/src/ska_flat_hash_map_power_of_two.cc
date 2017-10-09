@@ -8,8 +8,12 @@ struct power_of_two_hash : public Hasher {
     typedef ska::power_of_two_hash_policy hash_policy;
 };
 
+struct str_power_of_two_hash : public std::hash<std::string> {
+    typedef ska::power_of_two_hash_policy hash_policy;
+};
+
 typedef ska::flat_hash_map<KeyType, ValueType, power_of_two_hash> hash_t;
-typedef ska::flat_hash_map<std::string, int64_t, ska::power_of_two_std_hash<std::string>> str_hash_t;
+typedef ska::flat_hash_map<std::string, int64_t, str_power_of_two_hash> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash;
 
