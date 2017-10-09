@@ -282,6 +282,18 @@ public:
             return iter.erase();
         return NULL;
     }
+
+    double load_factor() const {
+        double occ = 0;
+        for (uint32_t idx = 0; idx < m_sizeMask + 1; idx++) {
+            CellGroup *cell_grp = m_cellGroups + (idx >> 2);
+            Cell *cell = cell_grp->cells + (idx & 3);
+            if (cell->hash != KeyTraits::NullHash) {
+                occ++;
+            }
+        }
+        return occ / (m_sizeMask + 1);
+    }
 };
 
 } // namespace junction
