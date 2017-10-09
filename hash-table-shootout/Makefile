@@ -16,7 +16,7 @@ BINARIES=  build/std_unordered_map              build/boost_unordered_map       
 			build/tsl_hopscotch_map_store_hash   build/tsl_robin_map                  \
 			build/tsl_robin_map_mlf_0_9          build/tsl_robin_map_store_hash       \
 			build/tsl_robin_pg_map               build/tsl_ordered_map                \
-			build/junction_map
+			build/junction_map                   build/libcuckoo
 
 all: $(BINARIES)
 
@@ -99,3 +99,6 @@ build/tsl_array_map_mlf_1_0: src/tsl_array_map_mlf_1_0.cc src/template.c
 
 build/junction_map: src/junction_map.cc src/template.c
 	$(CXX) $(CXX_FLAGS) -I./third_party/preshing/turf -I./third_party/preshing/junction -o build/junction_map src/junction_map.cc
+
+build/libcuckoo_map: src/libcuckoo_map.cc src/template.c
+	$(CXX) $(CXX_FLAGS) -I./third_party/libcuckoo -o build/libcuckoo_map src/libcuckoo_map.cc
