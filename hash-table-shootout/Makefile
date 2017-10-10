@@ -1,5 +1,5 @@
 CXX=g++
-CXX_FLAGS=-std=c++14 -O3 -DNDEBUG -msse4.2 -mavx -mavx2 -march=native -mpclmul -funroll-loops
+CXX_FLAGS=-std=c++14 -O3 -DNDEBUG -msse4.2 -mavx -mavx2 -march=native -mpclmul -funroll-loops -pthread
 CXX_FLAGS+=-I./third_party/clhash -I./third_party/smhasher/src -I./third_party/xxHash -I./third_party/farmhash/src
 
 HASHER=-DCRCHASH
@@ -16,7 +16,7 @@ BINARIES=  build/std_unordered_map              build/boost_unordered_map       
 			build/tsl_hopscotch_map_store_hash   build/tsl_robin_map                  \
 			build/tsl_robin_map_mlf_0_9          build/tsl_robin_map_store_hash       \
 			build/tsl_robin_pg_map               build/tsl_ordered_map                \
-			build/junction_map                   build/libcuckoo
+			build/junction_map                   build/libcuckoo_map
 
 all: $(BINARIES)
 
