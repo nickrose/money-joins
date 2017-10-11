@@ -136,7 +136,7 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
     bucket_t *b = ht->buckets + idx;
     if (b->count == BUCKET_SIZE) {
       while (b->count == BUCKET_SIZE) {
-        idx = (idx + 1) * hashmask;
+        idx = (idx + 1) & hashmask;
         b = ht->buckets + idx;
       }
     }
@@ -171,12 +171,12 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 
   uint64_t matches = 0;
   double len = 0.0, mi = 10000000.0, ma = 0.0;
-#if 1
+#if 0
   size_t prefetch_index = 16;
 #endif
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-#if 1
+#if 0
     if (prefetch_index < rel->num_tuples) {
       intkey_t idx_prefetch = HASH(rel->tuples[prefetch_index++].key,
                                    hashmask, skipbits);
@@ -199,7 +199,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
     } while (b->count == BUCKET_SIZE);
   }
   len /= matches;
-  fprintf(stderr, "avg: %.2lf, min: %.2lf, max: %.2lf\n", len, mi, ma);
+  //fprintf(stderr, "avg: %.2lf, min: %.2lf, max: %.2lf\n", len, mi, ma);
   return matches;
 }
 
@@ -252,10 +252,12 @@ int64_t PMJ_3(relation_t *relR, relation_t *relS, int nthreads) {
 #endif
 
   hashtable_t *ht;
-  uint32_t nbuckets = relR->num_tuples;
+  uint32_t nbuckets = relR->num_tuples / BUCKET_SIZE;
+  size_t mem_before = get_memory_usage_bytes();
   allocate_hashtable(&ht, nbuckets);
-
-  fprintf(stderr, "%lu\n", sizeof(bucket_t));
+  size_t mem_after = get_memory_usage_bytes();
+  fprintf(stderr, "HT: %.2lf MB\n",
+          ((double)mem_after-mem_before)/1024.0/1024.0);
 
 #ifdef PERF_COUNTERS
   PCM_initPerformanceMonitor(NULL, NULL);
