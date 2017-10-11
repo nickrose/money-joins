@@ -22,6 +22,13 @@ def best_of(runs, prog, args):
 
     return (best_mtps, best_secs, best_mem, best_load_factor)
 
+benchmarks = [
+    'insert_dense',
+    'probe_dense',
+    'insert_sparse',
+    'probe_sparse',
+]
+
 progs = [
     './build/emilib_hash_map',
     './build/google_dense_hash_map_mlf_0_9',
@@ -29,18 +36,22 @@ progs = [
     './build/ska_flat_hash_map_power_of_two_mlf_0_9',
     './build/tsl_hopscotch_map',
     './build/tsl_robin_map_mlf_0_9',
+    './build/junction_map',
 ]
 
 if __name__ == '__main__':
     jump = 1680000
-    for prog in progs:
-        nkeys = (1 << 24) + 1000
-        last_lf = 0
-        print("--> {0}".format(prog))
-        while True:
-            (mtps, secs, mem, lf) = best_of(5, prog, ['-n', str(nkeys), '-b', 'insert_dense', '--static'])
-            if last_lf != 0 and lf < last_lf:
-                break
-            print("{0}: {1} mtps, {2} sec, {3} MB".format(lf, mtps, secs, mem))
-            last_lf = lf
-            nkeys += jump
+    for bench in benchmarks:
+        print("===================== {0} =====================".format(bench.upper()))
+        print("====> # Keys: {0}, Jumping: {1}".format((1<<24)+1000, jump))
+        for prog in progs:
+            nkeys = (1 << 24) + 1000
+            last_lf = 0
+            print("--> {0}".format(prog))
+            while True:
+                (mtps, secs, mem, lf) = best_of(5, prog, ['-n', str(nkeys), '-b', bench, '--static'])
+                if last_lf != 0 and lf < last_lf:
+                    break
+                print("{0}: {1} mtps, {2} sec, {3} MB".format(lf, mtps, secs, mem))
+                last_lf = lf
+                nkeys += jump
