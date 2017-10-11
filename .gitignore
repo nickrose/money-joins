@@ -3,3 +3,5 @@
 *.la
 *.Po
 *.swp
+*.status
+*.log
