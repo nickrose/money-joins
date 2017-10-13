@@ -245,8 +245,8 @@ int main(int argc, char ** argv) {
     // Parse everything
     parse_arguments(argc, argv, args);
 
-    if (args.key_size % 8 != 0 || args.key_size > 256 || 
-        args.val_size % 8 != 0 || args.val_size > 256) {
+    if (args.key_size % 4 != 0 || args.key_size > 256 ||
+        args.val_size % 4 != 0 || args.val_size > 256) {
         printf("Key/value size must be multiple of 4 in range: [4,256]. Provided: %u/%u\n", 
                args.key_size, args.val_size);
         exit(1);
