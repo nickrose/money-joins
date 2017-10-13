@@ -1,0 +1,305 @@
+pmenon@dev5:~/work/money-joins/hash-table-shootout$ numactl -C 10 -m 1 python bench_lf.py
+===================== INSERT_DENSE =====================
+====> # Keys: 16778216, Jumping: 1680000
+--> ./build/emilib_hash_map
+0.50: 27.10 mtps, 0.62 sec, 543.91 MB
+0.55: 27.58 mtps, 0.67 sec, 544.22 MB
+0.60: 27.99 mtps, 0.72 sec, 543.96 MB
+0.65: 28.34 mtps, 0.77 sec, 543.96 MB
+0.70: 28.66 mtps, 0.82 sec, 544.22 MB
+0.75: 28.94 mtps, 0.87 sec, 543.91 MB
+0.80: 29.20 mtps, 0.92 sec, 544.22 MB
+0.85: 29.42 mtps, 0.97 sec, 544.16 MB
+0.90: 29.61 mtps, 1.02 sec, 543.91 MB
+--> ./build/google_dense_hash_map_mlf_0_9
+0.50: 22.20 mtps, 0.76 sec, 511.90 MB
+0.55: 22.61 mtps, 0.82 sec, 512.28 MB
+0.60: 22.97 mtps, 0.88 sec, 511.90 MB
+0.65: 23.27 mtps, 0.94 sec, 512.21 MB
+0.70: 23.54 mtps, 1.00 sec, 512.00 MB
+0.75: 23.77 mtps, 1.06 sec, 511.96 MB
+0.80: 23.98 mtps, 1.12 sec, 512.21 MB
+0.85: 24.17 mtps, 1.18 sec, 512.16 MB
+0.90: 24.36 mtps, 1.24 sec, 511.96 MB
+0.95: 24.50 mtps, 1.30 sec, 512.21 MB
+--> ./build/ska_flat_hash_map_mlf_0_9
+0.40: 14.55 mtps, 1.15 sec, 957.09 MB
+0.44: 14.53 mtps, 1.27 sec, 957.09 MB
+0.48: 14.35 mtps, 1.40 sec, 957.09 MB
+--> ./build/ska_flat_hash_map_power_of_two_mlf_0_9
+0.25: 14.74 mtps, 1.14 sec, 1536.08 MB
+0.28: 15.24 mtps, 1.21 sec, 1536.22 MB
+0.30: 15.71 mtps, 1.28 sec, 1536.08 MB
+0.33: 16.19 mtps, 1.35 sec, 1535.96 MB
+0.35: 16.56 mtps, 1.42 sec, 1536.22 MB
+0.38: 16.91 mtps, 1.49 sec, 1535.96 MB
+0.40: 17.19 mtps, 1.56 sec, 1535.96 MB
+0.43: 17.52 mtps, 1.63 sec, 1536.22 MB
+0.45: 17.74 mtps, 1.70 sec, 1536.02 MB
+0.48: 18.03 mtps, 1.77 sec, 1536.22 MB
+--> ./build/tsl_hopscotch_map
+0.50: 14.40 mtps, 1.17 sec, 767.92 MB
+0.55: 14.65 mtps, 1.26 sec, 768.23 MB
+0.60: 14.86 mtps, 1.35 sec, 767.91 MB
+0.65: 15.05 mtps, 1.45 sec, 768.17 MB
+0.70: 15.22 mtps, 1.54 sec, 768.17 MB
+0.75: 15.37 mtps, 1.64 sec, 767.91 MB
+0.80: 15.49 mtps, 1.73 sec, 768.17 MB
+0.85: 15.62 mtps, 1.83 sec, 768.02 MB
+0.90: 15.72 mtps, 1.92 sec, 767.97 MB
+0.95: 15.74 mtps, 2.03 sec, 768.29 MB
+--> ./build/tsl_robin_map_mlf_0_9
+0.50: 26.08 mtps, 0.64 sec, 767.91 MB
+0.55: 26.94 mtps, 0.69 sec, 768.29 MB
+0.60: 27.68 mtps, 0.73 sec, 767.91 MB
+0.65: 28.32 mtps, 0.77 sec, 768.22 MB
+0.70: 28.93 mtps, 0.81 sec, 768.17 MB
+0.75: 29.48 mtps, 0.85 sec, 767.91 MB
+0.80: 29.96 mtps, 0.90 sec, 768.21 MB
+0.85: 30.41 mtps, 0.94 sec, 768.17 MB
+0.90: 30.81 mtps, 0.98 sec, 767.91 MB
+--> ./build/libcuckoo_map
+0.50: 8.35 mtps, 2.01 sec, 571.70 MB
+0.55: 8.23 mtps, 2.24 sec, 571.90 MB
+0.60: 8.15 mtps, 2.47 sec, 571.77 MB
+0.65: 8.13 mtps, 2.68 sec, 571.78 MB
+0.70: 8.18 mtps, 2.87 sec, 571.71 MB
+0.75: 8.27 mtps, 3.04 sec, 571.79 MB
+0.80: 8.14 mtps, 3.30 sec, 571.85 MB
+0.85: 8.05 mtps, 3.54 sec, 571.73 MB
+0.90: 8.02 mtps, 3.77 sec, 571.72 MB
+0.95: 8.02 mtps, 3.98 sec, 571.80 MB
+--> ./build/junction_map
+0.50: 18.90 mtps, 0.89 sec, 576.03 MB
+0.55: 19.80 mtps, 0.93 sec, 576.03 MB
+0.60: 20.13 mtps, 1.00 sec, 576.35 MB
+0.65: 20.41 mtps, 1.07 sec, 576.03 MB
+0.70: 20.67 mtps, 1.14 sec, 576.35 MB
+0.75: 20.88 mtps, 1.21 sec, 576.03 MB
+0.80: 20.49 mtps, 1.31 sec, 576.03 MB
+0.85: 21.28 mtps, 1.34 sec, 576.29 MB
+0.90: 21.43 mtps, 1.41 sec, 576.03 MB
+0.95: 21.59 mtps, 1.48 sec, 576.09 MB
+===================== PROBE_DENSE =====================
+====> # Keys: 16778216, Jumping: 1680000
+--> ./build/emilib_hash_map
+0.50: 36.67 mtps, 4.58 sec, 0.00 MB
+0.55: 36.64 mtps, 5.04 sec, 0.00 MB
+0.60: 36.79 mtps, 5.47 sec, 0.00 MB
+0.65: 36.65 mtps, 5.95 sec, 0.00 MB
+0.70: 36.63 mtps, 6.42 sec, 0.00 MB
+0.75: 36.64 mtps, 6.87 sec, 0.00 MB
+0.80: 36.77 mtps, 7.30 sec, 0.00 MB
+0.85: 36.69 mtps, 7.78 sec, 0.00 MB
+0.90: 36.67 mtps, 8.24 sec, 0.00 MB
+--> ./build/google_dense_hash_map_mlf_0_9
+0.50: 37.40 mtps, 4.49 sec, 0.00 MB
+0.55: 37.40 mtps, 4.93 sec, 0.00 MB
+0.60: 37.41 mtps, 5.38 sec, 0.00 MB
+0.65: 37.40 mtps, 5.83 sec, 0.00 MB
+0.70: 37.42 mtps, 6.28 sec, 0.00 MB
+0.75: 37.40 mtps, 6.73 sec, 0.00 MB
+0.80: 37.41 mtps, 7.18 sec, 0.00 MB
+0.85: 37.42 mtps, 7.63 sec, 0.00 MB
+0.90: 37.41 mtps, 8.08 sec, 0.00 MB
+0.95: 37.39 mtps, 8.53 sec, 0.00 MB
+--> ./build/ska_flat_hash_map_mlf_0_9
+0.40: 25.25 mtps, 6.64 sec, 0.00 MB
+0.44: 24.23 mtps, 7.62 sec, 0.00 MB
+0.48: 23.18 mtps, 8.69 sec, 0.00 MB
+--> ./build/ska_flat_hash_map_power_of_two_mlf_0_9
+0.25: 72.39 mtps, 2.32 sec, 0.00 MB
+0.28: 72.36 mtps, 2.55 sec, 0.00 MB
+0.30: 72.33 mtps, 2.78 sec, 0.00 MB
+0.33: 72.31 mtps, 3.02 sec, 0.00 MB
+0.35: 72.29 mtps, 3.25 sec, 0.00 MB
+0.38: 72.27 mtps, 3.48 sec, 0.00 MB
+0.40: 72.26 mtps, 3.72 sec, 0.00 MB
+0.43: 72.25 mtps, 3.95 sec, 0.00 MB
+0.45: 72.23 mtps, 4.18 sec, 0.00 MB
+0.48: 72.24 mtps, 4.42 sec, 0.00 MB
+--> ./build/tsl_hopscotch_map
+0.50: 66.26 mtps, 2.53 sec, 0.00 MB
+0.55: 66.28 mtps, 2.78 sec, 0.00 MB
+0.60: 66.27 mtps, 3.04 sec, 0.00 MB
+0.65: 66.29 mtps, 3.29 sec, 0.00 MB
+0.70: 66.26 mtps, 3.55 sec, 0.00 MB
+0.75: 66.27 mtps, 3.80 sec, 0.00 MB
+0.80: 66.30 mtps, 4.05 sec, 0.00 MB
+0.85: 66.26 mtps, 4.31 sec, 0.00 MB
+0.90: 66.26 mtps, 4.56 sec, 0.00 MB
+0.95: 66.26 mtps, 4.81 sec, 0.00 MB
+--> ./build/tsl_robin_map_mlf_0_9
+0.50: 47.13 mtps, 3.56 sec, 0.00 MB
+0.55: 47.13 mtps, 3.92 sec, 0.00 MB
+0.60: 47.17 mtps, 4.27 sec, 0.00 MB
+0.65: 47.15 mtps, 4.63 sec, 0.00 MB
+0.70: 47.19 mtps, 4.98 sec, 0.00 MB
+0.75: 47.19 mtps, 5.34 sec, 0.00 MB
+0.80: 47.17 mtps, 5.69 sec, 0.00 MB
+0.85: 47.25 mtps, 6.04 sec, 0.00 MB
+0.90: 47.16 mtps, 6.41 sec, 0.00 MB
+--> ./build/libcuckoo_map
+0.50: 24.80 mtps, 6.77 sec, 0.06 MB
+0.55: 21.10 mtps, 8.75 sec, 0.00 MB
+0.60: 19.42 mtps, 10.37 sec, 0.00 MB
+0.65: 20.28 mtps, 10.76 sec, 0.00 MB
+0.70: 21.23 mtps, 11.07 sec, 0.00 MB
+^[0.75: 21.89 mtps, 11.50 sec, 0.00 MB
+0.80: 19.71 mtps, 13.62 sec, 0.00 MB
+0.85: 18.28 mtps, 15.61 sec, 0.00 MB
+0.90: 18.58 mtps, 16.27 sec, 0.00 MB
+0.95: 19.36 mtps, 16.47 sec, 0.00 MB
+--> ./build/junction_map
+0.50: 46.41 mtps, 3.62 sec, 0.00 MB
+0.55: 46.42 mtps, 3.98 sec, 0.00 MB
+0.60: 46.44 mtps, 4.34 sec, 0.00 MB
+0.65: 46.45 mtps, 4.70 sec, 0.00 MB
+0.70: 46.43 mtps, 5.06 sec, 0.00 MB
+0.75: 46.44 mtps, 5.42 sec, 0.00 MB
+0.80: 46.44 mtps, 5.78 sec, 0.00 MB
+0.85: 46.45 mtps, 6.14 sec, 0.00 MB
+0.90: 46.45 mtps, 6.50 sec, 0.00 MB
+0.95: 46.46 mtps, 6.87 sec, 0.00 MB
+===================== INSERT_SPARSE =====================
+====> # Keys: 16778216, Jumping: 1680000
+--> ./build/emilib_hash_map
+0.50: 20.54 mtps, 0.82 sec, 543.91 MB
+0.55: 19.91 mtps, 0.93 sec, 544.17 MB
+0.60: 19.17 mtps, 1.05 sec, 543.91 MB
+0.65: 18.36 mtps, 1.19 sec, 543.97 MB
+0.70: 17.50 mtps, 1.34 sec, 544.23 MB
+0.75: 16.59 mtps, 1.52 sec, 543.91 MB
+0.80: 15.61 mtps, 1.72 sec, 544.17 MB
+0.85: 14.51 mtps, 1.97 sec, 544.29 MB
+0.90: 13.06 mtps, 2.31 sec, 543.91 MB
+--> ./build/google_dense_hash_map_mlf_0_9
+0.50: 15.46 mtps, 1.09 sec, 512.21 MB
+0.55: 15.16 mtps, 1.22 sec, 512.21 MB
+0.60: 14.81 mtps, 1.36 sec, 511.90 MB
+0.65: 14.42 mtps, 1.51 sec, 512.16 MB
+0.70: 13.95 mtps, 1.69 sec, 512.27 MB
+0.75: 13.43 mtps, 1.87 sec, 511.90 MB
+0.80: 12.82 mtps, 2.10 sec, 512.16 MB
+0.85: 12.16 mtps, 2.35 sec, 512.21 MB
+0.90: 11.38 mtps, 2.66 sec, 511.90 MB
+0.95: 10.40 mtps, 3.07 sec, 512.16 MB
+--> ./build/ska_flat_hash_map_mlf_0_9
+0.40: 12.28 mtps, 1.37 sec, 957.14 MB
+0.44: 12.25 mtps, 1.51 sec, 957.14 MB
+0.48: 12.17 mtps, 1.66 sec, 956.95 MB
+--> ./build/ska_flat_hash_map_power_of_two_mlf_0_9
+0.25: 13.65 mtps, 1.23 sec, 1535.96 MB
+0.28: 14.00 mtps, 1.32 sec, 1536.14 MB
+0.30: 14.26 mtps, 1.41 sec, 1535.96 MB
+0.33: 14.46 mtps, 1.51 sec, 1535.96 MB
+0.35: 14.61 mtps, 1.61 sec, 1536.22 MB
+0.38: 14.70 mtps, 1.71 sec, 1535.96 MB
+0.40: 14.75 mtps, 1.82 sec, 1536.28 MB
+0.43: 14.76 mtps, 1.93 sec, 1536.28 MB
+0.45: 14.73 mtps, 2.05 sec, 1535.96 MB
+0.48: 14.66 mtps, 2.18 sec, 1536.28 MB
+--> ./build/tsl_hopscotch_map
+0.50: 11.21 mtps, 1.50 sec, 767.97 MB
+0.55: 11.15 mtps, 1.66 sec, 768.04 MB
+0.60: 10.97 mtps, 1.84 sec, 767.97 MB
+0.65: 10.73 mtps, 2.03 sec, 768.17 MB
+0.70: 10.41 mtps, 2.26 sec, 768.17 MB
+0.75: 10.13 mtps, 2.48 sec, 768.03 MB
+0.80: 9.77 mtps, 2.75 sec, 768.23 MB
+0.85: 9.36 mtps, 3.05 sec, 768.17 MB
+--> ./build/tsl_robin_map_mlf_0_9
+0.50: 14.03 mtps, 1.20 sec, 767.97 MB
+0.55: 13.78 mtps, 1.34 sec, 768.29 MB
+0.60: 13.43 mtps, 1.50 sec, 767.97 MB
+0.65: 12.98 mtps, 1.68 sec, 767.91 MB
+0.70: 12.44 mtps, 1.89 sec, 768.29 MB
+0.75: 11.80 mtps, 2.13 sec, 767.98 MB
+0.80: 11.04 mtps, 2.43 sec, 768.17 MB
+0.85: 10.12 mtps, 2.82 sec, 768.29 MB
+0.90: 8.94 mtps, 3.38 sec, 767.91 MB
+--> ./build/libcuckoo_map
+0.50: 7.65 mtps, 2.19 sec, 571.89 MB
+0.55: 7.60 mtps, 2.43 sec, 571.84 MB
+0.60: 7.53 mtps, 2.68 sec, 571.71 MB
+0.65: 7.43 mtps, 2.94 sec, 571.78 MB
+0.70: 7.28 mtps, 3.23 sec, 571.91 MB
+0.75: 7.10 mtps, 3.55 sec, 571.72 MB
+0.80: 6.86 mtps, 3.92 sec, 571.85 MB
+--> ./build/junction_map
+0.50: 14.37 mtps, 1.17 sec, 576.09 MB
+0.55: 14.18 mtps, 1.30 sec, 576.09 MB
+0.60: 13.74 mtps, 1.47 sec, 576.03 MB
+0.65: 13.24 mtps, 1.65 sec, 576.09 MB
+===================== PROBE_SPARSE =====================
+====> # Keys: 16778216, Jumping: 1680000
+--> ./build/emilib_hash_map
+0.50: 22.14 mtps, 7.58 sec, 0.00 MB
+0.55: 20.80 mtps, 8.87 sec, 0.00 MB
+0.60: 19.35 mtps, 10.41 sec, 0.00 MB
+0.65: 17.89 mtps, 12.20 sec, 0.00 MB
+0.70: 16.63 mtps, 14.13 sec, 0.00 MB
+0.75: 15.22 mtps, 16.55 sec, 0.00 MB
+0.80: 14.13 mtps, 19.01 sec, 0.00 MB
+0.85: 12.90 mtps, 22.12 sec, 0.00 MB
+0.90: 11.46 mtps, 26.38 sec, 0.00 MB
+--> ./build/google_dense_hash_map_mlf_0_9
+0.50: 23.17 mtps, 7.24 sec, 0.00 MB
+0.55: 21.80 mtps, 8.47 sec, 0.00 MB
+0.60: 20.42 mtps, 9.86 sec, 0.00 MB
+0.65: 19.09 mtps, 11.43 sec, 0.00 MB
+0.70: 17.78 mtps, 13.22 sec, 0.00 MB
+0.75: 16.50 mtps, 15.26 sec, 0.00 MB
+0.80: 15.19 mtps, 17.68 sec, 0.00 MB
+0.85: 13.91 mtps, 20.52 sec, 0.00 MB
+0.90: 12.58 mtps, 24.02 sec, 0.00 MB
+0.95: 11.07 mtps, 28.83 sec, 0.00 MB
+--> ./build/ska_flat_hash_map_mlf_0_9
+0.40: 26.80 mtps, 6.26 sec, 0.00 MB
+0.44: 25.77 mtps, 7.16 sec, 0.00 MB
+0.48: 24.67 mtps, 8.16 sec, 0.00 MB
+--> ./build/ska_flat_hash_map_power_of_two_mlf_0_9
+0.25: 41.10 mtps, 4.08 sec, 0.00 MB
+0.28: 40.19 mtps, 4.59 sec, 0.00 MB
+0.30: 39.29 mtps, 5.13 sec, 0.00 MB
+0.33: 38.37 mtps, 5.69 sec, 0.00 MB
+0.35: 37.45 mtps, 6.27 sec, 0.00 MB
+0.38: 36.52 mtps, 6.89 sec, 0.00 MB
+0.40: 35.55 mtps, 7.56 sec, 0.00 MB
+0.43: 34.55 mtps, 8.26 sec, 0.00 MB
+0.45: 33.51 mtps, 9.02 sec, 0.00 MB
+0.48: 32.45 mtps, 9.83 sec, 0.00 MB
+--> ./build/tsl_hopscotch_map
+0.50: 33.20 mtps, 5.05 sec, 0.00 MB
+
+0.55: 31.70 mtps, 5.82 sec, 0.00 MB
+0.60: 30.19 mtps, 6.67 sec, 0.00 MB
+0.65: 28.67 mtps, 7.61 sec, 0.00 MB
+0.70: 27.14 mtps, 8.66 sec, 0.00 MB
+0.75: 25.58 mtps, 9.84 sec, 0.00 MB
+0.80: 23.93 mtps, 11.22 sec, 0.00 MB
+0.85: 22.07 mtps, 12.93 sec, 0.00 MB
+--> ./build/tsl_robin_map_mlf_0_9
+0.50: 29.91 mtps, 5.61 sec, 0.00 MB
+0.55: 27.71 mtps, 6.66 sec, 0.00 MB
+0.60: 25.46 mtps, 7.91 sec, 0.00 MB
+0.65: 23.23 mtps, 9.39 sec, 0.00 MB
+0.70: 21.20 mtps, 11.09 sec, 0.00 MB
+0.75: 18.40 mtps, 13.68 sec, 0.00 MB
+0.80: 12.06 mtps, 22.27 sec, 0.00 MB
+0.85: 9.89 mtps, 28.85 sec, 0.00 MB
+0.90: 9.13 mtps, 33.11 sec, 0.00 MB
+--> ./build/libcuckoo_map
+0.50: 13.57 mtps, 12.36 sec, 0.00 MB
+0.55: 13.21 mtps, 13.98 sec, 0.00 MB
+0.60: 12.91 mtps, 15.60 sec, 0.00 MB
+0.65: 12.72 mtps, 17.16 sec, 0.00 MB
+0.70: 12.55 mtps, 18.72 sec, 0.00 MB
+0.75: 12.29 mtps, 20.48 sec, 0.00 MB
+0.80: 11.99 mtps, 22.41 sec, 0.00 MB
+--> ./build/junction_map
+0.50: 28.81 mtps, 5.82 sec, 0.00 MB
+0.55: 27.63 mtps, 6.68 sec, 0.00 MB
+0.60: 26.49 mtps, 7.60 sec, 0.00 MB
+0.65: 25.44 mtps, 8.57 sec, 0.00 MB
+p
