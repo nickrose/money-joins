@@ -39,15 +39,14 @@ using KeyEq = std::equal_to<KeyType>;
 
     public:
         CLHashHasher() {
-            random = 
-                clhash::get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
-                                                  UINT64_C(0xb3816f6a2c68e530));
+            random = get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
+                                               UINT64_C(0xb3816f6a2c68e530));
         }
 
         template <typename T>
         inline uint64_t operator()(const T &value) const {
             const char *buffer = reinterpret_cast<const char *>(&value);
-            return clhash::clhash(random, buffer, sizeof(value));
+            return clhash(random, buffer, sizeof(value));
         }
     };
     using Hasher = CLHashHasher;
