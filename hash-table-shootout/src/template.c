@@ -130,6 +130,8 @@ struct arguments {
     std::int64_t num_keys;
     std::int64_t probe_sf;
     std::int64_t num_runs;
+    uint32_t key_size;
+    uint32_t val_size;
     bool is_static;
     bool verbose;
 };
@@ -144,6 +146,8 @@ void print_help(char *progname) {
        -n --nkeys=<N>       Number of keys to insert <N> [2^24]                \n\
        -p --probe_sf=<SF>   Scale factor to use when generating probe keys [1] \n\
        -r --nruns=<R>       Number of times to run the benchmark [1]           \n\
+       -k --keysize=<K>     Size of key in bytes                               \n\
+       -v --valsize<V>      Size of value in bytes                             \n\
        --static             Use static table (i.e., reserve space beforehand)  \n\
                                                                                \n\
     Other flags:                                                               \n\
@@ -163,7 +167,9 @@ void parse_arguments(int argc, char **argv, arguments &args) {
         {"bench",     required_argument, 0, 'b'},
         {"nkeys",     required_argument, 0, 'n'},
         {"probe_sf",  required_argument, 0, 'p'},
-        {"nruns",     required_argument, 0, 'r'},        
+        {"nruns",     required_argument, 0, 'r'},  
+        {"keysize",   required_argument, 0, 'k'},  
+        {"valsize",   required_argument, 0, 'v'},        
         {"help",      required_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -201,6 +207,14 @@ void parse_arguments(int argc, char **argv, arguments &args) {
                 args.num_runs = std::atoi(optarg);
                 break;   
             }
+            case 'k': {
+                args.key_size = std::atoi(optarg);
+                break;
+            }
+            case 'v': {
+                args.val_size = std::atoi(optarg);
+                break;
+            }
             case 'h': 
             case '?': {
                 print_help(argv[0]);
@@ -223,11 +237,20 @@ int main(int argc, char ** argv) {
     args.num_keys = 1 << 24;
     args.probe_sf = 10;
     args.num_runs = 5;
+    args.key_size = 8;
+    args.val_size = 8;
     args.is_static = true;
     args.verbose = false;
 
     // Parse everything
     parse_arguments(argc, argv, args);
+
+    if (args.key_size % 8 != 0 || args.key_size > 256 || 
+        args.val_size % 8 != 0 || args.val_size > 256) {
+        printf("Key/value size must be multiple of 4 in range: [4,256]. Provided: %u/%u\n", 
+               args.key_size, args.val_size);
+        exit(1);
+    }
     
     // Do things
     const std::int64_t num_keys = args.num_keys;
