@@ -32,7 +32,7 @@ static const std::array<char, 62> ALPHANUMERIC_CHARS = {
  * SMALL_STRING_SIZE should be small enough so that there is no heap allocation when a std::string is created.
  */
 static const std::size_t SMALL_STRING_SIZE = 15;
-static const std::size_t STRING_SIZE = 50;
+static const std::size_t STRING_SIZE = 127;
 
 static const std::int64_t SEED = 0;
 static std::mt19937_64 generator(SEED);
@@ -390,17 +390,9 @@ int main(int argc, char ** argv) {
         
         
         measurements m(num_keys);
-        for(std::int64_t i = 0; i < num_keys; i++) {
-            INSERT_STR_INTO_HASH(keys[i], value);
-        }
-    }
-
-    else if(test_type == "insert_small_string_reserve") {
-        const std::vector<std::string> keys = get_random_alphanum_strings(num_keys, SMALL_STRING_SIZE);
-        
-        
-        measurements m(num_keys);
+        if (args.is_static) {
         RESERVE_STR(num_keys);
+        }
         for(std::int64_t i = 0; i < num_keys; i++) {
             INSERT_STR_INTO_HASH(keys[i], value);
         }
@@ -408,6 +400,9 @@ int main(int argc, char ** argv) {
 
     else if(test_type == "read_small_string") {
         std::vector<std::string> keys = get_random_alphanum_strings(num_keys, SMALL_STRING_SIZE);
+        if (args.is_static) {
+          RESERVE_STR(num_keys);
+        }
         for(std::int64_t i = 0; i < num_keys; i++) {
             INSERT_STR_INTO_HASH(keys[i], value);
         }
@@ -444,24 +439,18 @@ int main(int argc, char ** argv) {
         
         
         measurements m(num_keys);
-        for(std::int64_t i = 0; i < num_keys; i++) {
-            INSERT_STR_INTO_HASH(keys[i], value);
-        }
-    }
-    
-    else if(test_type == "insert_string_reserve") {
-        const std::vector<std::string> keys = get_random_alphanum_strings(num_keys, STRING_SIZE);
-        
-        
-        measurements m(num_keys);
+        if (args.is_static) {
         RESERVE_STR(num_keys);
+        }
         for(std::int64_t i = 0; i < num_keys; i++) {
             INSERT_STR_INTO_HASH(keys[i], value);
         }
     }
-
     else if(test_type == "read_string") {
         std::vector<std::string> keys = get_random_alphanum_strings(num_keys, STRING_SIZE); 
+        if (args.is_static) {
+        RESERVE_STR(num_keys);
+        }
         for(std::int64_t i = 0; i < num_keys; i++) {
             INSERT_STR_INTO_HASH(keys[i], value);
         }
