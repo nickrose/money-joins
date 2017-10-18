@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef cuckoohash_map<KeyType, ValueType, Hasher> hash_t;
-typedef cuckoohash_map<std::string, ValueType, std::hash<std::string>> str_hash_t;
+typedef cuckoohash_map<std::string, ValueType, StringHasher> str_hash_t;
 
 #define SETUP                                       \
   hash_t mt_hash;                                   \
@@ -15,8 +15,7 @@ typedef cuckoohash_map<std::string, ValueType, std::hash<std::string>> str_hash_
 
 #define RESERVE_INT(size) hash.reserve(size)
 #define RESERVE_STR(size) str_hash.reserve(size)
-#define LOAD_FACTOR_HASH() hash.load_factor()
-#define LOAD_FACTOR_STR_HASH() str_hash.load_factor()
+#define LOAD_FACTOR(map) map.load_factor()
 
 #define INSERT_INT_INTO_HASH(key, value) \
   auto ret = hash.insert(key, value);    \

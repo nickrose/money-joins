@@ -28,6 +28,20 @@ using KeyEq = std::equal_to<KeyType>;
     };
     using Hasher = Murmur3Hasher;
 
+    class Murmur3StringHasher {
+     public:
+        template <typename T>
+        uint64_t operator()(const T &value) const {
+            uint32_t hash = 0;
+            const char *buffer = value.c_str();
+            MurmurHash3_x86_32(buffer, value.length(), 123445, &hash);
+            return hash;
+        }
+    };
+    using StringHasher = Murmur3StringHasher;
+
+
+
 #elif defined(CLHASH)
     //===------------------------------------------------------------------===//
     /// CLHash hashing
@@ -51,6 +65,24 @@ using KeyEq = std::equal_to<KeyType>;
     };
     using Hasher = CLHashHasher;
 
+    class CLHashStringHasher {
+    private:
+        void *random;
+
+    public:
+        CLHashStringHasher() {
+            random = get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
+                                               UINT64_C(0xb3816f6a2c68e530));
+        }
+
+        template <typename T>
+        inline uint64_t operator()(const T &value) const {
+            const char *buffer = value.c_str();
+            return clhash(random, buffer, value.length());
+        }
+    };
+    using StringHasher = CLHashStringHasher;
+
 #elif defined(XXHASH)
     //===------------------------------------------------------------------===//
     /// xxHash hashing
@@ -69,6 +101,17 @@ using KeyEq = std::equal_to<KeyType>;
     };
     using Hasher = xxHashHasher;
 
+    class xxHashStringHasher {
+    public:
+        template <typename T>
+        inline uint64_t operator()(const T &value) const {
+            unsigned long long const seed = 0;
+            const char *buffer = value.c_str();
+            return XXH64(buffer, value.length(), seed);
+        }
+    };
+    using StringHasher = xxHashStringHasher;
+
 #elif defined(FARMHASH)
     //===------------------------------------------------------------------===//
     /// FarmHash hashing
@@ -83,6 +126,17 @@ using KeyEq = std::equal_to<KeyType>;
         }
     };
     using Hasher = FarmHashHasher;
+
+    class FarmHashStringHasher {
+    public:
+        template <typename T>
+        inline uint64_t operator()(const T &value) const {
+            const char *buffer = value.c_str();
+            return util::Hash32(buffer, value.length());
+        }
+    };
+    using StringHasher = FarmHashStringHasher;
+
 
 #elif defined(MULTHASH)
     //===------------------------------------------------------------------===//
@@ -145,8 +199,54 @@ using KeyEq = std::equal_to<KeyType>;
         return _mm_crc32_u32(0x4c11db7, value);
     }
 
-    #undef CRC32
     using Hasher = CRC_HW;
+
+    class CRC_HW_STRING {
+    public:
+        template <typename T>
+        uint64_t operator()(const T &value) const;
+
+        template <typename T>
+        uint64_t operator()(T &value) const {
+            return (*this)(static_cast<const T &>(value));
+        }
+    };
+
+    template <typename T>
+    inline uint64_t CRC_HW_STRING::operator()(const T &value) const {
+        uint64_t crc = 0;
+        uint64_t length = value.length();
+        const char *buf = value.c_str();
+    #if defined(__x86_64__) || defined(_M_X64)
+        // Try to each up as many 8-byte values as possible
+        CRC32(_mm_crc32_u64, crc, uint64_t, buf, length);
+    #endif
+        // Now we perform CRC in 4-byte, then 2-byte, then byte chunks
+        CRC32(_mm_crc32_u32, crc, uint32_t, buf, length);
+        CRC32(_mm_crc32_u16, crc, uint16_t, buf, length);
+        CRC32(_mm_crc32_u8, crc, uint8_t, buf, length);
+        // Done
+        return crc;
+    }
+    template <>
+    inline uint64_t CRC_HW_STRING::operator()<std::string>(const std::string &value) const {
+        uint64_t crc = 0;
+        uint64_t length = value.length();
+        const char *buf = value.c_str();
+    #if defined(__x86_64__) || defined(_M_X64)
+        // Try to each up as many 8-byte values as possible
+        CRC32(_mm_crc32_u64, crc, uint64_t, buf, length);
+    #endif
+        // Now we perform CRC in 4-byte, then 2-byte, then byte chunks
+        CRC32(_mm_crc32_u32, crc, uint32_t, buf, length);
+        CRC32(_mm_crc32_u16, crc, uint16_t, buf, length);
+        CRC32(_mm_crc32_u8, crc, uint8_t, buf, length);
+        // Done
+        return crc;
+    }
+
+    #undef CRC32
+    using StringHasher = CRC_HW_STRING;
 
 #elif defined(SIMPLEHASH)
     //===----------------------------------------------------------------------===//
@@ -159,11 +259,26 @@ using KeyEq = std::equal_to<KeyType>;
       }
     };
     using Hasher = SimpleInt64Hasher;
+
+    class SimpleStringHasher {
+     public:
+      inline uint64_t operator()(std::string value) const {
+        uint64_t hash = 5381;
+        int c;
+        const char *buf = value.c_str();
+        while (c = *buf++)
+          hash = ((hash << 5) + hash) + c;
+        return hash;
+      }
+    };
+    using StringHasher = SimpleStringHasher;
+
 #else
     //===------------------------------------------------------------------===//
     // STD Hash
     //===------------------------------------------------------------------===//
     using Hasher = std::hash<KeyType>;
+    using StringHasher = std::hash<std::string>;
 #endif
 
 //===----------------------------------------------------------------------===//
