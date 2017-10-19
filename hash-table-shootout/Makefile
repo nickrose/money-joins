@@ -1,4 +1,4 @@
-CXX=g++
+CXX=g++-5
 CXX_FLAGS=-std=c++14 -O3 -DNDEBUG -msse4.2 -mavx -mavx2 -march=native -mpclmul -funroll-loops -pthread
 CXX_FLAGS+=-I./third_party/clhash -I./third_party/smhasher/src -I./third_party/xxHash -I./third_party/farmhash/src
 
