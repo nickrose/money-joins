@@ -5,7 +5,8 @@
 #include "common.h"
 
 uint qHash(const std::string &key) {
-    return std::hash<std::string>()(key);
+    //return std::hash<std::string>()(key);
+    return StringHasher()(key);
 }
 
 #include <QHash>

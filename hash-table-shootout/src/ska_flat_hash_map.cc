@@ -8,7 +8,7 @@ struct prime_hash : public Hasher {
     typedef ska::prime_number_hash_policy hash_policy;
 };
 
-struct str_prime_hash : public std::hash<std::string> {
+struct str_prime_hash : public StringHasher {
     typedef ska::prime_number_hash_policy hash_policy;
 };
 
