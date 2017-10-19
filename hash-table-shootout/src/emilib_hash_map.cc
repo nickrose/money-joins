@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef emilib::HashMap<KeyType, KeyType, Hasher> hash_t;
-typedef emilib::HashMap<std::string, int64_t, std::hash<std::string>> str_hash_t;
+typedef emilib::HashMap<std::string, int64_t, StringHasher> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash;
 

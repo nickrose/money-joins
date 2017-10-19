@@ -7,7 +7,7 @@
 typedef tsl::hopscotch_map<KeyType, ValueType, Hasher, KeyEq, 
 						   std::allocator<std::pair<int64_t, int64_t>>,
                            30, true> hash_t;
-typedef tsl::hopscotch_map<std::string, int64_t, std::hash<std::string>, 
+typedef tsl::hopscotch_map<std::string, int64_t, StringHasher, 
                            std::equal_to<std::string>, std::allocator<std::pair<std::string, int64_t>>,
                            30, true> str_hash_t;
 

@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef tsl::hopscotch_map<KeyType, ValueType, Hasher> hash_t;
-typedef tsl::hopscotch_map<std::string, int64_t, std::hash<std::string>> str_hash_t;
+typedef tsl::hopscotch_map<std::string, int64_t, StringHasher> str_hash_t;
 
 #define SETUP hash_t hash; hash.max_load_factor(0.5f); str_hash_t str_hash; str_hash.max_load_factor(0.5f);
 

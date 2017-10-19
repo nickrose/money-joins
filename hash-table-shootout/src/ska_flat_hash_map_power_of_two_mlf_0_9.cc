@@ -8,7 +8,7 @@ struct power_of_two_hash : public Hasher {
     typedef ska::power_of_two_hash_policy hash_policy;
 };
 
-struct str_power_of_two_hash : public std::hash<std::string> {
+struct str_power_of_two_hash : public StringHasher {
     typedef ska::power_of_two_hash_policy hash_policy;
 };
 
