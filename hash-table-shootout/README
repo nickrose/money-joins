@@ -3,7 +3,7 @@ How to run these benchmarks:
 First, some prerequisites are:
 
 * make
-* gcc and recent g++ (4.3-ish?)
+* gcc and recent g++ (>= 5)
 * boost
 * google sparsehash
 * qt
