@@ -36,6 +36,7 @@ progs = [
     './build/ska_flat_hash_map_power_of_two_mlf_0_9',
     './build/tsl_hopscotch_map',
     './build/tsl_robin_map_mlf_0_9',
+    './build/libcuckoo_map',
     './build/junction_map',
 ]
 
