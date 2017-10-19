@@ -14,14 +14,26 @@ struct Int64KeyTraits {
   }
 };
 
+struct StringKeyTraits {
+  typedef size_t Hash;
+  static const std::string NullKey;
+  static const Hash NullHash = -1;    
+  static inline Hash hash(std::string key) {
+  static StringHasher hasher;
+    return hasher(key);
+  }
+};
+
+const std::string StringKeyTraits::NullKey = "";
+
 struct Int64ValueTraits {
   static const std::int64_t NullValue = -1;
 };
 
 typedef junction::SingleMap_Leapfrog<std::int64_t, const std::int64_t*, Int64KeyTraits, Int64ValueTraits> hash_t;
-//typedef junction::SingleMap_Leapfrog<std::string, const std::int64_t*> str_hash_t;
+typedef junction::SingleMap_Leapfrog<std::string, const std::int64_t*, StringKeyTraits, Int64ValueTraits> str_hash_t;
 
-#define SETUP hash_t hash; hash_t str_hash;
+#define SETUP hash_t hash; str_hash_t str_hash;
 
 #define RESERVE_INT(size) hash.reserve(size)
 #define RESERVE_STR(size) 
@@ -35,10 +47,11 @@ typedef junction::SingleMap_Leapfrog<std::int64_t, const std::int64_t*, Int64Key
             if(hash.get(key) != nullptr) { count++; }
 #define CHECK_INT_ITERATOR_VALUE(iterator, value) 
 
-#define INSERT_STR_INTO_HASH(key, value)
+#define INSERT_STR_INTO_HASH(key, value) str_hash.set(key, &value)
 #define DELETE_STR_FROM_HASH(key) 
-#define FIND_STR_EXISTING_FROM_HASH(key)
-#define FIND_STR_MISSING_FROM_HASH(key) 
-#define FIND_STR_EXISTING_FROM_HASH_COUNT(key, count) 
+#define FIND_STR_EXISTING_FROM_HASH(key) if(str_hash.get(key) == nullptr) { printf("error"); exit(1); }
+#define FIND_STR_MISSING_FROM_HASH(key) if(str_hash.get(key) != nullptr) { printf("error"); exit(2); }
+#define FIND_STR_EXISTING_FROM_HASH_COUNT(key, count) \
+            if(str_hash.get(key) != nullptr) { count++; }
 
 #include "template.c"
