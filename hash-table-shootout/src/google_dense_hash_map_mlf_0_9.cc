@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef google::dense_hash_map<KeyType, ValueType, Hasher> hash_t;
-typedef google::dense_hash_map<std::string, int64_t, std::hash<std::string>> str_hash_t;
+typedef google::dense_hash_map<std::string, int64_t, StringHasher> str_hash_t;
 
 #define SETUP hash_t hash; hash.max_load_factor(0.99f); \
 			  hash.set_empty_key(-1); hash.set_deleted_key(-2); \

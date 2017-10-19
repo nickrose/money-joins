@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef spp::sparse_hash_map<KeyType, ValueType, Hasher, KeyEq> hash_t;
-typedef spp::sparse_hash_map<std::string, int64_t, std::hash<std::string>, std::equal_to<std::string>> str_hash_t;
+typedef spp::sparse_hash_map<std::string, int64_t, StringHasher, std::equal_to<std::string>> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash;
 

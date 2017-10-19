@@ -5,7 +5,7 @@
 #include "common.h"
 
 typedef boost::unordered_map<KeyType, ValueType, Hasher> hash_t;
-typedef boost::unordered_map<std::string, int64_t, std::hash<std::string>> str_hash_t;
+typedef boost::unordered_map<std::string, int64_t, StringHasher> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash;
 

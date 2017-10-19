@@ -6,7 +6,7 @@
 
 typedef tsl::robin_map<KeyType, ValueType, Hasher, KeyEq, 
                        std::allocator<std::pair<int64_t, int64_t>>, true> hash_t;
-typedef tsl::robin_map<std::string, int64_t, std::hash<std::string>, std::equal_to<std::string>, 
+typedef tsl::robin_map<std::string, int64_t, StringHasher, std::equal_to<std::string>, 
                        std::allocator<std::pair<std::string, int64_t>>, true> str_hash_t;
 
 #define SETUP hash_t hash; str_hash_t str_hash;
