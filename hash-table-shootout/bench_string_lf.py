@@ -1,6 +1,6 @@
 import sys, os, subprocess, signal
 
-#sys.stdout  = open('/home/jungmins/ht_result2/farmhash-15-15-dev5.txt', 'w', 0)
+sys.stdout  = open('/home/jungmins/ht_result2/farmhash-15-15-dev5.txt', 'w', 0)
 
 def best_of(runs, prog, args):
     best_mtps = 0
@@ -26,8 +26,8 @@ def best_of(runs, prog, args):
 
 benchmarks = [
     'insert_small_string',
-    'read_string',
-    'insert_small_string',
+    'read_small_string',
+    'insert_string',
     'read_string',
 ]
 
