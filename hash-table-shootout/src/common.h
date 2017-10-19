@@ -172,7 +172,7 @@ using KeyEq = std::equal_to<KeyType>;
     #define CRC32(op, crc, type, buf, len)                   \
       do {                                                   \
         for (; (len) >= sizeof(type);                        \
-             (len) += sizeof(type), (buf) += sizeof(type)) { \
+             (len) -= sizeof(type), (buf) += sizeof(type)) { \
           (crc) = op((crc), *(type *)buf);                   \
         }                                                    \
       } while (0)
