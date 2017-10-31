@@ -1,0 +1,391 @@
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sched.h>              /* CPU_ZERO, CPU_SET */
+#include <pthread.h>            /* pthread_* */
+#include <string.h>             /* memset */
+#include <stdio.h>              /* printf */
+#include <stdlib.h>             /* memalign */
+#include <sys/time.h>           /* gettimeofday */
+
+#include "pmoney_join.h"
+#include "pmj_params.h"         /* constant parameters */
+#include "rdtsc.h"              /* startTimer, stopTimer */
+#include "lock.h"               /* lock, unlock */
+#include "cpu_mapping.h"        /* get_cpu_id */
+#ifdef PERF_COUNTERS
+#include "perf_counters.h"      /* PCM_x */
+#endif
+
+#include "hash.h"
+#include "generator.h"          /* numa_localize() */
+
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
+#ifndef NEXT_POW_2
+/** 
+ *  compute the next number, greater than or equal to 32-bit unsigned v.
+ *  taken from "bit twiddling hacks":
+ *  http://graphics.stanford.edu/~seander/bithacks.html
+ */
+#define NEXT_POW_2(V)                           \
+    do {                                        \
+        V--;                                    \
+        V |= V >> 1;                            \
+        V |= V >> 2;                            \
+        V |= V >> 4;                            \
+        V |= V >> 8;                            \
+        V |= V >> 16;                           \
+        V++;                                    \
+    } while(0)
+#endif
+
+#ifndef HASH
+#define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
+#endif
+
+// Debug msg logging method
+#ifdef DEBUG
+#define DEBUGMSG(COND, MSG, ...)                                    \
+    if(COND) { fprintf(stderr, "[DEBUG] "MSG, ## __VA_ARGS__); }
+#else
+#define DEBUGMSG(COND, MSG, ...) 
+#endif
+
+// An experimental feature to allocate input relations numa-local
+extern int numalocalize;  /* defined in generator.c */
+extern int nthreads;      /* defined in generator.c */
+
+typedef struct hashtable {
+  uint32_t  *buckets;
+  uint32_t  *next;
+  uint32_t  first_empty;
+  uint32_t  num_buckets;
+  uint32_t  hash_mask;
+  uint32_t  skip_bits;
+} hashtable_t;
+
+//===----------------------------------------------------------------------===//
+// Allocate a hash table with the given number of buckets
+//===----------------------------------------------------------------------===//
+static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
+  hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
+  ht->num_buckets = nbuckets;
+  NEXT_POW_2((ht->num_buckets));
+
+  /* allocate hashtable buckets cache line aligned */
+  if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE,
+                     ht->num_buckets * sizeof(uint32_t))){
+    perror("Aligned allocation failed!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (posix_memalign((void**)&ht->next, CACHE_LINE_SIZE,
+                     ht->num_buckets * sizeof(uint32_t))){
+    perror("Aligned allocation failed!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // Not an elegant way of passing whether we will numa-localize, but this
+  // feature is experimental anyways
+  /*
+  if(numalocalize) {
+    tuple_t * mem = (tuple_t *) ht->buckets;
+    uint32_t ntuples = (ht->num_buckets*sizeof(vs_t))/sizeof(tuple_t);
+    numa_localize(mem, ntuples, nthreads);
+  }
+  */
+
+  memset(ht->buckets, 0, ht->num_buckets * sizeof(uint32_t));
+  memset(ht->next, 0, ht->num_buckets * sizeof(uint32_t));
+  ht->skip_bits = 0;
+  ht->hash_mask = (ht->num_buckets - 1) << ht->skip_bits;
+  ht->first_empty = 1;
+  *ppht = ht;
+}
+
+//===----------------------------------------------------------------------===//
+// Destroy the given hash table
+//===----------------------------------------------------------------------===//
+static inline void destroy_hashtable(hashtable_t * ht) {
+  free(ht->buckets);
+  free(ht->next);
+  free(ht);
+}
+
+//===----------------------------------------------------------------------===//
+// Build a hash table using a single thread
+//===----------------------------------------------------------------------===//
+
+static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
+  const uint32_t hashmask = ht->hash_mask;
+  const uint32_t skipbits = ht->skip_bits;
+
+  for(uint32_t i = 0; i < rel->num_tuples; i++) {
+    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    uint32_t pos = i+1;
+    
+    ht->next[pos] = ht->buckets[idx];
+    ht->buckets[idx] = pos;
+    //ht->values[pos].tuple = rel->tuples[i];
+    //ht->first_empty++;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Probe the hash table using a single thread
+//===----------------------------------------------------------------------===//
+#if 0
+static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel, relation_t *rel_build) {
+  const uint32_t hashmask = ht->hash_mask;
+  const uint32_t skipbits = ht->skip_bits;
+
+  uint64_t matches = 0;
+
+  for (uint32_t i = 0; i < rel->num_tuples; i++) {
+    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    uint32_t pos = ht->buckets[idx];
+    if (pos) {
+      do {
+        if (rel->tuples[i].key == rel_build->tuples[pos].key) {
+          matches++;
+        }
+      } while ( (pos = ht->next[pos]) );
+    }
+  }
+  return matches;
+}
+#endif
+
+#if 0
+static inline int64_t check_next(uint32_t n, tuple_t *tuples, hashtable_t *ht, uint32_t *pos, uint32_t *match) {
+  uint32_t k = 0;
+  for (uint32_t i = 0; i < n; i++) {
+    if (tuples[match[i]].key != ht->values[pos[match[i]]].tuple.key) {
+      pos[match[i]] = ht->values[pos[match[i]]].next; 
+      match[k] = match[i];
+      k += (pos[match[i]] != 0);
+    }    
+  }
+  return k;
+}
+
+static inline int64_t vectorized_probe(hashtable_t *ht, tuple_t *tuples, uint32_t n, uint32_t *pos, uint32_t *match) {
+  const uint32_t hashmask = ht->hash_mask;
+  const uint32_t skipbits = ht->skip_bits;
+
+  int64_t result = 0; 
+  uint32_t k = 0;
+
+  // Initial lookup
+  for (uint32_t i = 0; i < n; i++) {
+    uint32_t idx = HASH(tuples[i].key, hashmask, skipbits);
+    pos[i] = ht->buckets[idx]; 
+    //pos[k] = ht->buckets[idx]; 
+    //match[k] = i;
+    //k += (pos[i] != 0);
+  }
+
+//#if 0
+  for (uint32_t i = 0; i < n; i++) {
+    pos[k] = pos[i];
+    match[k] = i;
+    k += (pos[i] != 0);
+  }
+//#endif
+
+  // Recheck
+  while (k > 0) {
+    k = check_next(k, tuples, ht, pos, match);
+  }
+
+  for (uint32_t i = 0; i < n; i++) {
+    result += (pos[i] != 0);
+  }
+
+  return result;
+}
+
+static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
+  uint32_t pos[VECTOR_SIZE], matches[VECTOR_SIZE];
+  uint64_t result = 0;
+
+  for (uint32_t i = 0; i < rel->num_tuples; i += VECTOR_SIZE) {
+    uint32_t sz = i + VECTOR_SIZE < rel->num_tuples ? VECTOR_SIZE : rel->num_tuples - i;
+    result += vectorized_probe(ht, rel->tuples + i, sz, pos, matches);    
+  }
+  return result;
+}
+#endif
+
+#if 1
+static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel, relation_t *rel_build) {
+  const uint32_t hashmask = ht->hash_mask;
+  const uint32_t skipbits = ht->skip_bits;
+
+  uint64_t matches = 0;
+
+  for (uint32_t i = 0; i < rel->num_tuples; i++) {
+    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    for (uint32_t hit = ht->buckets[idx]; hit > 0; hit = ht->next[hit]) {
+      matches += (rel->tuples[i].key == rel_build->tuples[hit-1].key);
+    }
+  }
+  return matches;
+}
+#endif
+
+#if 0
+static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
+  const uint32_t hashmask = ht->hash_mask;
+  const uint32_t skipbits = ht->skip_bits;
+
+  uint64_t results = 0;
+  uint32_t pivot[VECTOR_SIZE], matches[VECTOR_SIZE];
+  uint32_t p = 0;
+
+  for (uint32_t i = 0; i < rel->num_tuples; i += VECTOR_SIZE) {
+    uint32_t sz = i + VECTOR_SIZE < rel->num_tuples ? VECTOR_SIZE : rel->num_tuples - i;
+    p = 0;
+    for (uint32_t j = 0; j < sz; j++) {
+      uint32_t idx = HASH(rel->tuples[i+j].key, hashmask, skipbits);
+      pivot[p] = ht->buckets[idx]; 
+      matches[p] = i+j;
+      p += (pivot[p] != 0);
+    }
+    while (p > 0) {
+      uint32_t pp = 0;
+      for (uint32_t j = 0; j < p; j++) {
+        uint32_t pos = pivot[j];
+        tuple_t *probe = &rel->tuples[matches[j]];
+        tuple_t *build = &ht->values[pos].tuple;
+        results += (probe->key == build->key); 
+        pivot[pp] = ht->values[pos].next;
+        matches[pp] = matches[j];
+        pp += (pivot[pp] != 0);
+      }
+      p = pp;
+    }
+  }
+  return results;
+}
+#endif
+
+//===----------------------------------------------------------------------===//
+// Print out the execution time statistics of the join
+//===----------------------------------------------------------------------===//
+static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
+                                uint64_t num_build, uint64_t num_probe, int64_t result,
+                                struct timeval *start, struct timeval *end) {
+  // General
+  uint64_t num_tuples = num_probe + num_build;
+  double diff_msec = (((*end).tv_sec*1000L + (*end).tv_usec/1000L)
+                      - ((*start).tv_sec*1000L+(*start).tv_usec/1000L));
+  double cyclestuple = (double)total / (double)(num_tuples);
+
+  // Throughput in million-tuples-per-sec
+  double throughput = (double)num_tuples / (double)diff_msec / 1000.0;
+
+  // Probe info
+  uint64_t probe_cycles = total - build;
+  double probe_cpt = (double)probe_cycles / (double)num_probe;
+  double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
+
+  // Build info
+  uint64_t build_cycles = build - part;
+  double build_cpt = (double)build_cycles / (double)num_probe;
+  double build_usec = ((double)build_cycles / (double)total) * diff_msec;
+
+  // Part
+  double part_cpt = (double)part / (double)num_probe;
+  double part_usec = ((double)part / (double)total) * diff_msec;
+
+  fprintf(stderr, 
+          "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
+          "Probe: %.2lf ms (%.2lf CPT), Build: %.2lf ms (%.2lf CPT), "
+          "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
+          result, diff_msec, throughput, probe_usec, 
+          probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
+  fflush(stderr);
+}
+
+//===----------------------------------------------------------------------===//
+// Run the algorithm
+//===----------------------------------------------------------------------===//
+int64_t PMJ_9(relation_t *relR, relation_t *relS, int nthreads) {
+
+#ifndef NO_TIMING
+  struct timeval start, end;
+  uint64_t partition_time, build_time, probe_time;
+#endif
+
+  hashtable_t *ht;
+  uint32_t nbuckets = relR->num_tuples;
+  allocate_hashtable(&ht, nbuckets);
+
+#ifdef PERF_COUNTERS
+  PCM_initPerformanceMonitor(NULL, NULL);
+  PCM_start();
+#endif
+
+#ifndef NO_TIMING
+  gettimeofday(&start, NULL);
+  startTimer(&build_time);
+  startTimer(&probe_time); 
+  partition_time = 0; // no partitioning
+#endif
+
+  //////////////////////////////////////
+  // BUILD
+  //////////////////////////////////////
+  build_hashtable_st(ht, relR);
+
+#ifdef DEBUG
+  uint32_t occ = 0;
+  for (uint32_t j = 0; j < ht->num_buckets; j++) {
+    occ += (ht->buckets[j] != 0);
+  }
+  fprintf(stderr, "HT load-factor: %.2lf \%\n", (double)occ/(double)ht->num_buckets);
+  fprintf(stderr, "Num allocs: %llu\n", num_allocs);
+#endif
+
+#ifndef NO_TIMING
+  stopTimer(&build_time);
+#endif
+
+#ifdef PERF_COUNTERS
+  PCM_stop();
+  PCM_log("========== Build phase profiling results ==========\n");
+  PCM_printResults();
+  PCM_start();
+#endif
+
+  //////////////////////////////////////
+  // PROBE
+  //////////////////////////////////////
+  int64_t result = probe_hashtable_st(ht, relS, relR);
+
+#ifdef PERF_COUNTERS
+    PCM_stop();
+    PCM_log("========== Probe phase profiling results ==========\n");
+    PCM_printResults();
+    PCM_log("===================================================\n");
+    PCM_cleanup();
+#endif
+
+#ifndef NO_TIMING
+  stopTimer(&probe_time);
+  gettimeofday(&end, NULL);
+  // Now print the timing results
+  print_timing(probe_time, build_time, partition_time,
+               relR->num_tuples, relS->num_tuples, result, &start, &end);
+#endif
+
+
+  // Cleanup
+  destroy_hashtable(ht);
+
+  return result;
+}
