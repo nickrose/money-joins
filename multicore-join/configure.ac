@@ -119,13 +119,6 @@ AC_ARG_ENABLE(swwc-part,
 
 AM_CONDITIONAL([USE_SWWC_OPTIMIZED_PART], [test "$enable_swwcpart" = "yes"])
 
-AC_ARG_ENABLE(murmur-hash,
-   [  --enable-murmur-hash  enable Murmur3Hash  [default=yes]],
-   [enable_murmurhash="$enableval"], 
-   [enable_murmurhash="yes"])
-
-AM_CONDITIONAL([MURMUR], [test "$enable_murmurhash" = "yes"])
-
 AC_ARG_ENABLE(separate-chain,
    [  --enable-separate-chain  use separate bucket-chain array in hash table [default=no]],
    [enable_separatechain="$enableval"], 

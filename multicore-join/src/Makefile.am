@@ -53,10 +53,6 @@ if USE_SWWC_OPTIMIZED_PART
 DEFINES += -DUSE_SWWC_OPTIMIZED_PART
 endif
 
-if MURMUR
-DEFINES += -DMURMUR
-endif
-
 if SEPARATE_CHAIN
 DEFINES += -DSEPARATE_CHAIN
 endif
@@ -71,7 +67,8 @@ AM_LDFLAGS =
 CFLAGS = -O3 -g -ggdb
 CXXFLAGS = -O3
 bin_PROGRAMS = mchashjoins
-mchashjoins_SOURCES =	TUM/Affinitizer.cpp TUM/Barrier.cpp TUM/NoPartitionJoin.cpp TUM/ProcessorMap.cpp \
+mchashjoins_SOURCES =	pmoney_join_9.h pmoney_join_9.c \
+			TUM/Affinitizer.cpp TUM/Barrier.cpp TUM/NoPartitionJoin.cpp TUM/ProcessorMap.cpp \
 			pmoney_join_8.h pmoney_join_8.c \
 			hyper_join.h hyper_join.c \
 			pmoney_join_7.h pmoney_join_7.c \

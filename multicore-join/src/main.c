@@ -252,11 +252,14 @@ cpu-mapping.txt
 #include "pmoney_join_7.h"
 #include "hyper_join.h"
 #include "pmoney_join_8.h"
+#include "pmoney_join_9.h"
 #include "TUM/NoPartitionJoin.h"
 #include "no_partitioning_join.h" /* no partitioning joins: NPO, NPO_st */
 #include "parallel_radix_join.h"  /* parallel radix joins: RJ, PRO, PRH, PRHO */
 #include "generator.h"            /* create_relation_xk */
 #include "prj_params.h"
+
+#include "hash.h"
 
 #include "perf_counters.h" /* PCM_x */
 #include "affinity.h"      /* pthread_attr_setaffinity_np & sched_setaffinity */
@@ -321,6 +324,7 @@ static struct algo_t algos [] =
       {"HYPER", HYPER},
       {"HYPER_NOP", &HYPER_NOP<false>},
       {"PMJ_8", PMJ_8},
+      {"PMJ_9", PMJ_9},
       {{0}, 0}
   };
 
@@ -434,10 +438,16 @@ main(int argc, char ** argv)
 
 
     /* Run the selected join algorithm */
-#ifdef MURMUR
+#if defined(MURMUR)
     printf("[INFO ] Murmur3Hash\n");
+#elif defined(CRCHASH)
+    printf("[INFO ] CRC Hash\n");
+#elif defined(FIBHASH)
+    printf("[INFO ] Fib Hash\n");
+#elif defined(IDHASH)
+    printf("[INFO ] ID Hash\n");
 #else
-    printf("[INFO ] XOR+Shift Hash\n");
+    printf("[INFO ] XOR+shift\n");
 #endif
     printf("[INFO ] Num Pases: %i\n", NUM_PASSES);
     printf("[INFO ] Skew: %.2lf\n", cmd_params.skew);
