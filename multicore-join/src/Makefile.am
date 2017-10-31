@@ -1,5 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 
+CC=g++
+
 LANG =
 DEFINES = 
 MYLDFLAGS =
@@ -17,7 +19,8 @@ MISC += -I../lib/pcm/ -L../lib/pcm/lib
 LIBS += -lperf
 LANG += -std=c++11
 else
-LANG += -std=c99
+#LANG += -std=c99
+LANG += -std=c++11
 endif
 
 if DEBUG
@@ -62,12 +65,14 @@ endif
 # -mavx, -mtune=niagara2, -mcpu=ultrasparc
 AM_CFLAGS = -Wall -ansi -Wno-format -pedantic \
 	    -g -msse4.2 -mavx -mavx2 -march=native $(LANG) $(DEFINES)
+AM_CXXFLAGS = $(AM_CFLAGS)
 
 AM_LDFLAGS =
 CFLAGS = -O3 -g -ggdb
-
+CXXFLAGS = -O3
 bin_PROGRAMS = mchashjoins
-mchashjoins_SOURCES =	pmoney_join_8.h pmoney_join_8.c \
+mchashjoins_SOURCES =	TUM/Affinitizer.cpp TUM/Barrier.cpp TUM/NoPartitionJoin.cpp TUM/ProcessorMap.cpp \
+			pmoney_join_8.h pmoney_join_8.c \
 			hyper_join.h hyper_join.c \
 			pmoney_join_7.h pmoney_join_7.c \
 			pmoney_join_6.h pmoney_join_6.c \

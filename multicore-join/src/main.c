@@ -252,6 +252,7 @@ cpu-mapping.txt
 #include "pmoney_join_7.h"
 #include "hyper_join.h"
 #include "pmoney_join_8.h"
+#include "TUM/NoPartitionJoin.h"
 #include "no_partitioning_join.h" /* no partitioning joins: NPO, NPO_st */
 #include "parallel_radix_join.h"  /* parallel radix joins: RJ, PRO, PRH, PRHO */
 #include "generator.h"            /* create_relation_xk */
@@ -318,6 +319,7 @@ static struct algo_t algos [] =
       {"PMJ_6", PMJ_6},
       {"PMJ_7", PMJ_7},
       {"HYPER", HYPER},
+      {"HYPER_NOP", &HYPER_NOP<false>},
       {"PMJ_8", PMJ_8},
       {{0}, 0}
   };

@@ -45,6 +45,14 @@ struct relation_t {
   uint32_t  num_tuples;
 };
 
+struct join_result_t {
+  uint64_t matches;
+  uint64_t checksum;
+  uint64_t time_usec;
+  uint64_t part_usec;
+  uint64_t join_usec;
+};
+
 /** @} */
 
 #endif /* TYPES_H */

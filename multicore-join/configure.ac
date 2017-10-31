@@ -4,6 +4,7 @@
 #AC_PREREQ([2.68])
 AC_INIT([multicore-hashjoins], [0.1], [cagri.balkesen@inf.ethz.ch])
 AM_INIT_AUTOMAKE(multicore-hashjoins, 0.1)
+AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_SRCDIR([src/npj_types.h])
 AC_CONFIG_HEADERS([config.h])
