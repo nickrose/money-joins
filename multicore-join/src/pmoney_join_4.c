@@ -72,7 +72,7 @@ typedef struct hashtable {
 } hashtable_t;
 
 #define SET_BIT(bitmap, idx) bitmap[idx >> 3] |= 1 << (idx & 7)
-#define IS_SET(bitmap, idx) (bitmap[idx >> 3] & (1 << (idx & 7)))
+#define IS_SET(bitmap, idx) ((bitmap[idx >> 3] & (1 << (idx & 7))) != 0)
 
 //===----------------------------------------------------------------------===//
 // Allocate a hash table with the given number of buckets
@@ -81,6 +81,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
+  //ht->num_buckets <<= 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->flags, CACHE_LINE_SIZE,
@@ -103,6 +104,9 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
     numa_localize(mem, ntuples, nthreads);
   }
   */
+  uint32_t flag_sz = ht->num_buckets / 8 * sizeof(uint8_t);
+  uint32_t buc_sz = ht->num_buckets * sizeof(tuple_t);
+  fprintf(stderr, "HT: %.2lf KB\n", (flag_sz+buc_sz)/1024.0);
 
   memset(ht->flags, 0, ht->num_buckets / 8 * sizeof(uint8_t));
   memset(ht->values, 0, ht->num_buckets * sizeof(tuple_t));
@@ -130,6 +134,13 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
 
   for(uint32_t i = 0; i < rel->num_tuples; i++) {
     uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    while (IS_SET(ht->flags, idx)) {
+      idx = (idx + 1) & hashmask;
+    }
+    SET_BIT(ht->flags, idx);
+    ht->values[idx] = rel->tuples[i];
+    //printf("Key %ld going to pos %u\n", rel->tuples[i].key, idx);
+    /*
     uint32_t step = 0;
     do {
       if (IS_SET(ht->flags, idx) == 0) {
@@ -139,6 +150,7 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
       }
       idx = (idx + 1) & hashmask;
     } while (step++ < ht->num_buckets);
+    */
   }
 }
 
@@ -186,24 +198,14 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t skipbits = ht->skip_bits;
 
   uint64_t matches = 0;
-  uint32_t pf_idx = 16;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-#if 1
-    if (pf_idx < rel->num_tuples) {
-      uint32_t idx_pf = HASH(rel->tuples[pf_idx++].key, hashmask, skipbits);
-      __builtin_prefetch(ht->values + idx_pf, 0, 1);
-    }
-#endif
     uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    while (IS_SET(ht->flags, idx) && ht->values[idx].key != rel->tuples[i].key) {
+      idx = (idx + 1) & hashmask;
+    }
     if (IS_SET(ht->flags, idx)) {
-      while (IS_SET(ht->flags, idx)) {
-        if (ht->values[idx].key == rel->tuples[i].key) {
-          matches++;
-          break;
-        }
-        idx = (idx + 1) & hashmask;
-      }
+      matches++;
     }
   }
   return matches;
@@ -244,7 +246,6 @@ static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
           "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
           result, diff_msec, throughput, probe_usec, 
           probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
-  fprintf(stderr, "Total cycles: %lu\n", total);
   fflush(stderr);
 }
 
@@ -259,12 +260,10 @@ int64_t PMJ_4(relation_t *relR, relation_t *relS, int nthreads) {
 #endif
 
   hashtable_t *ht;
-  uint32_t nbuckets = 2 * relR->num_tuples;
+  uint32_t nbuckets = relR->num_tuples;
   size_t mem_before = get_memory_usage_bytes();
   allocate_hashtable(&ht, nbuckets);
   size_t mem_after = get_memory_usage_bytes();
-  fprintf(stderr, "HT: %.2lf MB\n",
-          ((double)mem_after-mem_before)/1024.0/1024.0);
 
 #ifdef PERF_COUNTERS
   PCM_initPerformanceMonitor(NULL, NULL);
