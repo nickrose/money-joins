@@ -6,7 +6,7 @@
 #undef FIBHASH
 #undef IDHASH
 
-#define MURMUR
+#define CRCHASH
 
 #if defined(MURMUR)
 // MURMUR

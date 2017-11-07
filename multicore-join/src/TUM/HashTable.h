@@ -26,6 +26,8 @@
 #include "types.h"
 #include "Barrier.h"
 
+#include "../hash.h"
+
 using namespace std;
 
 struct HTEntry {
@@ -44,6 +46,8 @@ struct HTEntry {
 #else
 #define COUT while(0) cout
 #endif
+
+static double avg_steps = 0.0;
 
 class HashTable {
 public:
@@ -70,16 +74,6 @@ public:
 //		table = static_cast<HTEntry*>((void*) new char[nBuckets	* sizeof(HTEntry)]);
 //		memset(table, 0, nBuckets * sizeof(HTEntry));
         COUT << "nBuckets=" << nBuckets << " mask=" << mask << endl;
-
-#if defined(_IDHASH_)
-        COUT << "ID hash" << endl;
-#elif defined(_FIBHASH_)
-        COUT << "FIB hash" << endl;
-#elif defined(_CRCHASH_)
-        COUT << "CRC hash" << endl;
-#else
-        COUT << "MURMUR hash" << endl;
-#endif
     }
 
     ~HashTable() {
@@ -144,6 +138,10 @@ public:
 
     }
 
+	inline intkey_t hashKey(const intkey_t k) const {
+		return Hash(k);
+	}
+#if 0
 #if defined(_IDHASH_)
 	/** Identity Hashing */
 	inline intkey_t hashKey(const intkey_t k) const {
@@ -177,6 +175,7 @@ public:
         return h | (1ull << ((sizeof(intkey_t) * 8 - 1)));
     }
 
+#endif
 #endif
 
 
@@ -336,8 +335,10 @@ public:
 
     inline void *lookup(const intkey_t key) const {
         uint64_t pos = hashKey(key) & mask;
+        avg_steps++;
         while ((table[pos].hash) && (table[pos].t.key != key)) {
             pos = (pos + 1) & mask;
+            avg_steps++;
         }
 //		return table[pos].t.key == key ? &table[pos].t : NULL;
         return table[pos].hash ? &table[pos].t : NULL;

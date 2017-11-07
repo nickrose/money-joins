@@ -7,7 +7,7 @@
 
 /** Number of tuples that each bucket can hold */
 #ifndef BUCKET_SIZE
-#define BUCKET_SIZE 3
+#define BUCKET_SIZE 2
 #endif
 
 /** Size of system cache line in bytes */

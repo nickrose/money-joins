@@ -9,7 +9,7 @@
 #define KEY_DISTANCE 1
 #endif
 
-#define _PREFETCH_
+//#define _PREFETCH_
 
 #include <stdio.h>
 #include <stdlib.h>
