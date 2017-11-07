@@ -1,3 +1,8 @@
+//===----------------------------------------------------------------------===//
+//
+// Vectorized, bucket-chain hash table
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -21,9 +26,6 @@
 #include "hash.h"
 #include "generator.h"          /* numa_localize() */
 
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
-
 #ifndef NEXT_POW_2
 /** 
  *  compute the next number, greater than or equal to 32-bit unsigned v.
@@ -44,14 +46,6 @@
 
 #ifndef HASH
 #define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
-#endif
-
-// Debug msg logging method
-#ifdef DEBUG
-#define DEBUGMSG(COND, MSG, ...)                                    \
-    if(COND) { fprintf(stderr, "[DEBUG] "MSG, ## __VA_ARGS__); }
-#else
-#define DEBUGMSG(COND, MSG, ...) 
 #endif
 
 // An experimental feature to allocate input relations numa-local
@@ -103,6 +97,10 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
     numa_localize(mem, ntuples, nthreads);
   }
   */
+  uint32_t next_sz = ht->num_buckets * sizeof(uint32_t);
+  uint32_t vals_sz = ht->num_buckets * sizeof(vs_t);
+  fprintf(stderr, "HT: %.2lf KB (%u buckets)\n",
+          (next_sz+vals_sz) / 1024.0, ht->num_buckets);
 
   memset(ht->buckets, 0, ht->num_buckets * sizeof(uint32_t));
   memset(ht->values, 0, ht->num_buckets * sizeof(vs_t));
@@ -165,7 +163,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 }
 #endif
 
-//#if 0
+#if 0
 static inline int64_t check_next(uint32_t n, tuple_t *tuples, hashtable_t *ht, uint32_t *pos, uint32_t *match) {
   uint32_t k = 0;
   for (uint32_t i = 0; i < n; i++) {
@@ -224,9 +222,9 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   }
   return result;
 }
-//#endif
+#endif
 
-#if 0
+#if 1
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
   const uint32_t skipbits = ht->skip_bits;
@@ -236,7 +234,11 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
     uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
     for (uint32_t hit = ht->buckets[idx]; hit > 0; hit = ht->values[hit].next) {
-      matches += (rel->tuples[i].key == ht->values[hit].tuple.key);
+      if (ht->values[hit].tuple.key == rel->tuples[i].key) {
+        matches++;
+        break;
+      }
+      //matches += (rel->tuples[i].key == ht->values[hit].tuple.key);
     }
   }
   return matches;
@@ -347,6 +349,15 @@ int64_t PMJ_2(relation_t *relR, relation_t *relS, int nthreads) {
   // BUILD
   //////////////////////////////////////
   build_hashtable_st(ht, relR);
+
+#if 1
+  uint32_t occ = 0;
+  for (uint32_t j = 0; j < ht->num_buckets; j++) {
+    occ += (ht->buckets[j] != 0);
+  }
+  fprintf(stderr, "HT load-factor: %.2lf \n",
+          (double)occ/((double)ht->num_buckets));
+#endif
 
 #ifdef DEBUG
   uint32_t occ = 0;

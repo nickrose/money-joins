@@ -93,6 +93,8 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
     numa_localize(mem, ntuples, nthreads);
   }
   */
+  fprintf(stderr, "HT: %.2lf KB (%u buckets)\n",
+          (ht->num_buckets*sizeof(bucket_t)) / 1024.0, ht->num_buckets);
 
   memset(ht->buckets, 0, ht->num_buckets * sizeof(bucket_t));
   ht->mpl = 0;
@@ -119,13 +121,9 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
   for(uint32_t i = 0; i < rel->num_tuples; i++) {
     uint32_t hash = Hash(rel->tuples[i].key);
     uint32_t idx = hash & hashmask;
-    //uint32_t step = 1;
     while (ht->buckets[idx].hash) {
       idx = (idx + 1) & hashmask;
-      //step <<= 1;
-      //idx = (idx + step) & hashmask;
     }
-    //printf("Key %lu -> idx %u\n", rel->tuples[i].key, idx);
     ht->buckets[idx].hash = hash;
     ht->buckets[idx].tuple = rel->tuples[i];
   }
@@ -212,11 +210,7 @@ int64_t PMJ_3(relation_t *relR, relation_t *relS, int nthreads) {
 
   hashtable_t *ht;
   uint32_t nbuckets = relR->num_tuples;
-  size_t mem_before = get_memory_usage_bytes();
   allocate_hashtable(&ht, nbuckets);
-  size_t mem_after = get_memory_usage_bytes();
-  fprintf(stderr, "HT: %.2lf MB\n",
-          ((double)mem_after-mem_before)/1024.0/1024.0);
 
 #ifdef PERF_COUNTERS
   PCM_initPerformanceMonitor(NULL, NULL);
@@ -238,10 +232,10 @@ int64_t PMJ_3(relation_t *relR, relation_t *relS, int nthreads) {
 #if 1
   uint32_t occ = 0;
   for (uint32_t j = 0; j < ht->num_buckets; j++) {
-    occ += ht->buckets[j].hash != 0;
+    occ += (ht->buckets[j].hash != 0);
   }
   fprintf(stderr, "HT load-factor: %.2lf \n",
-          (double)occ/((double)ht->num_buckets*BUCKET_SIZE));
+          (double)occ/((double)ht->num_buckets));
 #endif
 
 #ifndef NO_TIMING

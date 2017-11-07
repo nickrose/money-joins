@@ -139,59 +139,8 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
     }
     SET_BIT(ht->flags, idx);
     ht->values[idx] = rel->tuples[i];
-    //printf("Key %ld going to pos %u\n", rel->tuples[i].key, idx);
-    /*
-    uint32_t step = 0;
-    do {
-      if (IS_SET(ht->flags, idx) == 0) {
-        ht->values[idx] = rel->tuples[i]; 
-        SET_BIT(ht->flags, idx);
-        break;
-      }
-      idx = (idx + 1) & hashmask;
-    } while (step++ < ht->num_buckets);
-    */
   }
 }
-
-//===----------------------------------------------------------------------===//
-// Probe the hash table using a single thread
-//===----------------------------------------------------------------------===//
-#if 0
-static inline int64_t do_probe_hashtable_st(hashtable_t *ht, tuple_t *tuples, uint32_t sz) {
-  const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
-
-  uint32_t matches[VECTOR_SIZE];
-  uint32_t pivot[VECTOR_SIZE];
-  uint32_t p = 0, m = 0;
-
-  for (uint32_t i = 0; i < sz; i++) {
-    uint32_t idx = HASH(tuples[i].key, hashmask, skipbits);
-    matches[p] = idx;
-    pivot[p] = i;
-    p += (IS_SET(ht->flags, idx) != 0);
-  }
-  for (uint32_t i = 0; i < p; i++) {
-    if (tuples[pivot[i]].key == ht->values[matches[i]].key) {
-      m++;
-    }
-  }
-  return m;
-
-}
-
-static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
-
-  uint64_t matches = 0;
-
-  for (uint32_t i = 0; i < rel->num_tuples; i += VECTOR_SIZE) {
-    uint32_t sz = i + VECTOR_SIZE < rel->num_tuples ? VECTOR_SIZE : rel->num_tuples - i;
-    matches += do_probe_hashtable_st(ht, rel->tuples + i, sz);
-  }
-  return matches;
-}
-#endif
 
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
