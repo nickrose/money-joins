@@ -1,4 +1,6 @@
 
+// A regular linear probing HT
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -21,9 +23,6 @@
 #include "hash.h"
 #include "generator.h"          /* numa_localize() */
 
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
-
 #ifndef NEXT_POW_2
 /** 
  *  compute the next number, greater than or equal to 32-bit unsigned v.
@@ -42,10 +41,6 @@
     } while(0)
 #endif
 
-#ifndef HASH
-#define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
-#endif
-
 // Debug msg logging method
 #ifdef DEBUG
 #define DEBUGMSG(COND, MSG, ...)                                    \
@@ -58,20 +53,10 @@
 extern int numalocalize;  /* defined in generator.c */
 extern int nthreads;      /* defined in generator.c */
 
-#if 1
 struct bucket_t {
-  uint32_t count;
-  tuple_t  tuples[BUCKET_SIZE];
-} __attribute__ ((aligned(64)));
-#else
-struct bucket_t {
-    volatile char     latch;
-    /* 3B hole */
-    uint32_t          count;
-    tuple_t           tuples[BUCKET_SIZE];
-    struct bucket_t * next;
-} __attribute__ ((aligned(CACHE_LINE_SIZE)));
-#endif
+  intkey_t hash;
+  tuple_t  tuple;
+};
 
 typedef struct bucket_t bucket_t;
 
@@ -90,6 +75,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
+  //ht->num_buckets = ht->num_buckets << 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE,
@@ -129,37 +115,20 @@ static inline void destroy_hashtable(hashtable_t * ht) {
 
 static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   for(uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
-    bucket_t *b = ht->buckets + idx;
-    if (b->count == BUCKET_SIZE) {
-      while (b->count == BUCKET_SIZE) {
-        idx = (idx + 1) & hashmask;
-        b = ht->buckets + idx;
-      }
-    }
-    b->tuples[b->count] = rel->tuples[i];
-    b->count++;
-  }
-      
-#if 0
-    uint32_t step = 1;
-    do {
-      bucket_t *curr = &ht->buckets[idx];
-      if (curr->flag == 0) {
-        curr->tuple = rel->tuples[i];
-        curr->flag = 1;
-        break;
-      }
+    uint32_t hash = Hash(rel->tuples[i].key);
+    uint32_t idx = hash & hashmask;
+    //uint32_t step = 1;
+    while (ht->buckets[idx].hash) {
       idx = (idx + 1) & hashmask;
-    } while (step++ < ht->num_buckets);
-    if (step > ht->mpl) {
-      ht->mpl = step;
+      //step <<= 1;
+      //idx = (idx + step) & hashmask;
     }
+    //printf("Key %lu -> idx %u\n", rel->tuples[i].key, idx);
+    ht->buckets[idx].hash = hash;
+    ht->buckets[idx].tuple = rel->tuples[i];
   }
-#endif
 }
 
 //===----------------------------------------------------------------------===//
@@ -167,38 +136,28 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
 //===----------------------------------------------------------------------===//
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   uint64_t matches = 0;
-  double len = 0.0, mi = 10000000.0, ma = 0.0;
-#if 0
-  size_t prefetch_index = 16;
-#endif
+  //float len = 0.0, mi = 10000000.0, ma = 0.0;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-#if 0
-    if (prefetch_index < rel->num_tuples) {
-      intkey_t idx_prefetch = HASH(rel->tuples[prefetch_index++].key,
-                                   hashmask, skipbits);
-      __builtin_prefetch(ht->buckets + idx_prefetch, 0, 1);
-    }
-#endif
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
-    bucket_t *b = ht->buckets + idx;
-    do {
-      int found = 0;
-      for (uint32_t j = 0; j < b->count; j++) {
-        if (b->tuples[j].key == rel->tuples[i].key) {
-          matches++;
-          found = 1;
-        }
-      }
-      if (found) break;
+    uint32_t hash = Hash(rel->tuples[i].key);
+    uint32_t idx = hash & hashmask;
+    //float ilen = 1.0;
+    //uint32_t step = 1;
+    while ((ht->buckets[idx].hash) &&
+           (ht->buckets[idx].tuple.key != rel->tuples[i].key)) {
       idx = (idx + 1) & hashmask;
-      b = ht->buckets + idx;
-    } while (b->count == BUCKET_SIZE);
+      //ilen++;
+    }
+    //len += ilen;
+    //mi = ilen < mi ? ilen : mi;
+    //ma = ilen > ma ? ilen : ma;
+    if (ht->buckets[idx].hash) {
+      matches++;
+    }
   }
-  len /= matches;
+  //len /= matches;
   //fprintf(stderr, "avg: %.2lf, min: %.2lf, max: %.2lf\n", len, mi, ma);
   return matches;
 }
@@ -252,7 +211,7 @@ int64_t PMJ_3(relation_t *relR, relation_t *relS, int nthreads) {
 #endif
 
   hashtable_t *ht;
-  uint32_t nbuckets = relR->num_tuples / BUCKET_SIZE;
+  uint32_t nbuckets = relR->num_tuples;
   size_t mem_before = get_memory_usage_bytes();
   allocate_hashtable(&ht, nbuckets);
   size_t mem_after = get_memory_usage_bytes();
@@ -279,9 +238,9 @@ int64_t PMJ_3(relation_t *relR, relation_t *relS, int nthreads) {
 #if 1
   uint32_t occ = 0;
   for (uint32_t j = 0; j < ht->num_buckets; j++) {
-    occ += ht->buckets[j].count;
+    occ += ht->buckets[j].hash != 0;
   }
-  fprintf(stderr, "HT load-factor: %.2lf \%\n",
+  fprintf(stderr, "HT load-factor: %.2lf \n",
           (double)occ/((double)ht->num_buckets*BUCKET_SIZE));
 #endif
 
