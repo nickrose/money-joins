@@ -6,7 +6,7 @@
 #undef FIBHASH
 #undef IDHASH
 
-#define CRCHASH
+#define IDHASH
 
 #if defined(MURMUR)
 // MURMUR
@@ -27,6 +27,7 @@ static inline uint64_t Hash(intkey_t k) {
   return k;
   #endif
 
+  #if 1
   const uint64_t m = 0xc6a4a7935bd1e995;
   const int r = 47;
   uint64_t h = 0x8445d61a4e774912 ^(8 * m);
@@ -39,6 +40,7 @@ static inline uint64_t Hash(intkey_t k) {
   h *= m;
   h ^= h >> r;
   return h | (1ull << ((sizeof(uint64_t) * 8 - 1)));
+  #endif
 }
 #elif defined(CRCHASH)
 // CRC
@@ -52,6 +54,12 @@ static inline intkey_t Hash(const intkey_t k) {
 #warning "Using Fib Hash"
 static inline intkey_t Hash(intkey_t k) {
   return (k * 11400714819323198485ull) | (1ull<<((sizeof(intkey_t)*8-1)));
+}
+#elif defined(MULTHASH)
+// Multiplictative
+static inline intkey_t Hash(const intkey_t k) {
+  //return k * 2654435761LU; //golden ratio for 32 bits constant
+  return k * 11400714819323198485ULL; //golden ratio for 64 bits constant
 }
 #elif defined(IDHASH)
 /// ID HASH

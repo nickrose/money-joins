@@ -446,6 +446,8 @@ main(int argc, char ** argv)
     printf("[INFO ] Fib Hash\n");
 #elif defined(IDHASH)
     printf("[INFO ] ID Hash\n");
+#elif defined(MULTHASH)
+    printf("[INFO ] Mult Hash\n");
 #else
     printf("[INFO ] XOR+shift\n");
 #endif
