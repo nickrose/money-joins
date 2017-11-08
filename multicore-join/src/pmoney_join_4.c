@@ -26,9 +26,6 @@
 #include "hash.h"
 #include "generator.h"          /* numa_localize() */
 
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
-
 #ifndef NEXT_POW_2
 /** 
  *  compute the next number, greater than or equal to 32-bit unsigned v.
@@ -49,14 +46,6 @@
 
 #ifndef HASH
 #define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
-#endif
-
-// Debug msg logging method
-#ifdef DEBUG
-#define DEBUGMSG(COND, MSG, ...)                                    \
-    if(COND) { fprintf(stderr, "[DEBUG] "MSG, ## __VA_ARGS__); }
-#else
-#define DEBUGMSG(COND, MSG, ...) 
 #endif
 
 // An experimental feature to allocate input relations numa-local
@@ -81,7 +70,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
-  //ht->num_buckets <<= 1;
+  ht->num_buckets <<= 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->flags, CACHE_LINE_SIZE,

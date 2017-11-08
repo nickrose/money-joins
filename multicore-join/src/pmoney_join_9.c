@@ -74,6 +74,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
+  ht->num_buckets <<= 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE,
@@ -97,6 +98,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
     numa_localize(mem, ntuples, nthreads);
   }
   */
+  fprintf(stderr, "HT: %.2lf KB\n", (2*ht->num_buckets*sizeof(uint32_t))/1024.0);
 
   memset(ht->buckets, 0, ht->num_buckets * sizeof(uint32_t));
   memset(ht->next, 0, ht->num_buckets * sizeof(uint32_t));

@@ -1,5 +1,8 @@
-
-// A regular linear probing HT
+//===----------------------------------------------------------------------===//
+//
+// A regular open addressing table with linear probing. Inlined key/value pairs.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -75,7 +78,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
-  //ht->num_buckets = ht->num_buckets << 1;
+  ht->num_buckets = ht->num_buckets << 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE,
@@ -136,27 +139,26 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
 
   uint64_t matches = 0;
-  //float len = 0.0, mi = 10000000.0, ma = 0.0;
+  //double avg_len = 0.0, min = 100000.0, max = 0.0;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
     uint32_t hash = Hash(rel->tuples[i].key);
     uint32_t idx = hash & hashmask;
-    //float ilen = 1.0;
-    //uint32_t step = 1;
+    //uint32_t len = 1;
     while ((ht->buckets[idx].hash) &&
            (ht->buckets[idx].tuple.key != rel->tuples[i].key)) {
       idx = (idx + 1) & hashmask;
-      //ilen++;
+      //len++;
     }
-    //len += ilen;
-    //mi = ilen < mi ? ilen : mi;
-    //ma = ilen > ma ? ilen : ma;
+    //avg_len += len;
+    //min = (len < min ? len : min);
+    //max = (len > max ? len : max);
     if (ht->buckets[idx].hash) {
       matches++;
     }
   }
-  //len /= matches;
-  //fprintf(stderr, "avg: %.2lf, min: %.2lf, max: %.2lf\n", len, mi, ma);
+  //avg_len /= rel->num_tuples;
+  //printf("Avg. len: %.2lf, min: %.2lf, max: %.2lf\n", avg_len, min, max);
   return matches;
 }
 
