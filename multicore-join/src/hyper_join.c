@@ -1,3 +1,8 @@
+//===----------------------------------------------------------------------===//
+//
+// HyPER style joins
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -53,11 +58,6 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-#ifndef HASH
-//#define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
-#define HASH(X, MASK, SKIP) (( (_mm_crc32_u32(0x4c11db7,(X))) & MASK ) >> SKIP )
-#endif
-
 // Debug msg logging method
 #ifdef DEBUG
 #define DEBUGMSG(COND, MSG, ...)                                    \
@@ -71,18 +71,18 @@ extern int numalocalize;  /* defined in generator.c */
 extern int nthreads;      /* defined in generator.c */
 
 typedef struct entry {
-  tuple_t tuple;
+  tuple_t *tuple;
   struct entry *next; 
 } entry_t;
 
 typedef struct hashtable {
   entry_t   **buckets;
-  char      *mem;
-  char      *mem_pos;
-  uint32_t  mem_space;
+
+  char      *entry_mem_pool;
+  char      *curr_mem_pool_pos;
+
   uint32_t  num_buckets;
   uint32_t  hash_mask;
-  uint32_t  skip_bits;
 } hashtable_t;
 
 //===----------------------------------------------------------------------===//
@@ -90,19 +90,20 @@ typedef struct hashtable {
 //===----------------------------------------------------------------------===//
 static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
-  ht->num_buckets = nbuckets / 4;
+  ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
 
-  ht->mem_space = nbuckets * sizeof(entry_t);
+  // Total number of bytes needed to store all entries
+  uint64_t directory_size = ht->num_buckets * sizeof(entry_t **);
+  uint64_t entry_pool_size = nbuckets * sizeof(entry_t);
 
   /* allocate hashtable buckets cache line aligned */
-  if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE,
-                     ht->num_buckets * sizeof(entry_t **))){
+  if (posix_memalign((void**)&ht->buckets, CACHE_LINE_SIZE, directory_size)) {
     perror("Aligned allocation failed!\n");
     exit(EXIT_FAILURE);
   }
 
-  if (posix_memalign((void**)&ht->mem, CACHE_LINE_SIZE, ht->mem_space)){
+  if (posix_memalign((void**)&ht->entry_mem_pool, CACHE_LINE_SIZE, entry_pool_size)){
     perror("Aligned allocation failed!\n");
     exit(EXIT_FAILURE);
   }
@@ -117,11 +118,16 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   }
   */
 
+  fprintf(stderr, "HT: %.2lf KB (%u buckets, %.2lf KB directory, %.2lf entry pool), LF: %.2lf\n",
+          (directory_size + entry_pool_size) / 1024.0, ht->num_buckets,
+          (double)directory_size/1024.0, (double)entry_pool_size/1024.0,
+          (double) nbuckets / (double) ht->num_buckets / 1.0);
+
   memset(ht->buckets, 0, ht->num_buckets * sizeof(entry_t **));
-  memset(ht->mem, 0, ht->mem_space);
-  ht->mem_pos = ht->mem;
-  ht->skip_bits = 0;
-  ht->hash_mask = (ht->num_buckets - 1) << ht->skip_bits;
+  memset(ht->entry_mem_pool, 0, entry_pool_size);
+
+  ht->curr_mem_pool_pos = ht->entry_mem_pool;
+  ht->hash_mask = ht->num_buckets - 1;
   *ppht = ht;
 }
 
@@ -130,6 +136,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
 //===----------------------------------------------------------------------===//
 static inline void destroy_hashtable(hashtable_t * ht) {
   free(ht->buckets);
+  free(ht->entry_mem_pool);
   free(ht);
 }
 
@@ -139,15 +146,14 @@ static inline void destroy_hashtable(hashtable_t * ht) {
 
 static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   for(uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
-    entry_t *e = (entry_t *)ht->mem_pos;
-    e->tuple = rel->tuples[i];
+    uint32_t idx = Hash(rel->tuples[i].key) & hashmask;
+    entry_t *e = (entry_t *)ht->curr_mem_pool_pos;
+    e->tuple = rel->tuples + i;
     e->next = ht->buckets[idx];
     ht->buckets[idx] = e;
-    ht->mem_pos += sizeof(entry_t);
+    ht->curr_mem_pool_pos += sizeof(entry_t);
   }
 }
 
@@ -156,18 +162,18 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
 //===----------------------------------------------------------------------===//
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   uint64_t matches = 0/*, steps = 0, curr_min = 1000000, curr_max = 0*/;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    uint32_t idx = Hash(rel->tuples[i].key) & hashmask;
     entry_t *e = ht->buckets[idx];
     //uint32_t step = 0;
     if (e) {
       do {
-        if (e->tuple.key == rel->tuples[i].key) {
+        if (e->tuple->key == rel->tuples[i].key) {
           matches++;
+          break;
         }
         e = e->next;
         //step++; 
@@ -224,7 +230,7 @@ static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
 //===----------------------------------------------------------------------===//
 // Run the algorithm
 //===----------------------------------------------------------------------===//
-int64_t HYPER(relation_t *relR, relation_t *relS, int nthreads) {
+int64_t Hyper(relation_t *relR, relation_t *relS, int nthreads) {
 
 #ifndef NO_TIMING
   struct timeval start, end;
@@ -232,12 +238,8 @@ int64_t HYPER(relation_t *relR, relation_t *relS, int nthreads) {
 #endif
 
   hashtable_t *ht;
-  uint32_t nbuckets = 2 * relR->num_tuples;
-  size_t mem_before = get_memory_usage_bytes();
+  uint32_t nbuckets = relR->num_tuples;
   allocate_hashtable(&ht, nbuckets);
-  size_t mem_after = get_memory_usage_bytes();
-  fprintf(stderr, "HT: %.2lf MB\n",
-          ((double)mem_after-mem_before)/1024.0/1024.0);
 
 #ifdef PERF_COUNTERS
   PCM_initPerformanceMonitor(NULL, NULL);

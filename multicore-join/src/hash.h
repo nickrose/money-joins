@@ -6,28 +6,37 @@
 #undef FIBHASH
 #undef IDHASH
 
-#define IDHASH
+#define MULTHASH
 
 #if defined(MURMUR)
 // MURMUR
 #warning "Using Murmur"
 static inline uint64_t Hash(intkey_t k) {
   #if 0
+  k ^= k >> 16;
+  k *= 0x85ebca6b;
+  k ^= k >> 13;
+  k *= 0xc2b2ae35;
+  k ^= k >> 16;
+  return k;
+  #endif
+  #if 1
+  uint64_t kk = (uint64_t)k;
   //
   // The following code segment is copied from MurmurHash3, and is used
   // as an answer on the Internet:
   // http://stackoverflow.com/questions/5085915/what-is-the-best-hash-
   //   function-for-uint64-t-keys-ranging-from-0-to-its-max-value
   //
-  k ^= k >> 33;
-  k *= 0xff51afd7ed558ccd;
-  k ^= k >> 33;
-  k *= 0xc4ceb9fe1a85ec53;
-  k ^= k >> 33;
-  return k;
+  kk ^= kk >> 33;
+  kk *= 0xff51afd7ed558ccd;
+  kk ^= kk >> 33;
+  kk *= 0xc4ceb9fe1a85ec53;
+  kk ^= kk >> 33;
+  return kk;
   #endif
 
-  #if 1
+  #if 0
   const uint64_t m = 0xc6a4a7935bd1e995;
   const int r = 47;
   uint64_t h = 0x8445d61a4e774912 ^(8 * m);

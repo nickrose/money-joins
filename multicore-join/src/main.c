@@ -254,6 +254,9 @@ cpu-mapping.txt
 #include "pmoney_join_8.h"
 #include "pmoney_join_9.h"
 #include "TUM/NoPartitionJoin.h"
+#include "DAWN/dawn_join.h"
+#include "cuckoo/cuckoo_join.h"
+#include "hopscotch/hopscotch_join.h"
 #include "no_partitioning_join.h" /* no partitioning joins: NPO, NPO_st */
 #include "parallel_radix_join.h"  /* parallel radix joins: RJ, PRO, PRH, PRHO */
 #include "generator.h"            /* create_relation_xk */
@@ -321,8 +324,11 @@ static struct algo_t algos [] =
       {"PMJ_5", PMJ_5},
       {"PMJ_6", PMJ_6},
       {"PMJ_7", PMJ_7},
-      {"HYPER", HYPER},
+      {"HYPER", Hyper},
       {"HYPER_NOP", &HYPER_NOP<false>},
+      {"DAWN", &DawnJoin},
+      {"Cuckoo", &CuckooJoin},
+      {"Hopscotch", &HopscotchJoin},
       {"PMJ_8", PMJ_8},
       {"PMJ_9", PMJ_9},
       {{0}, 0}
@@ -436,8 +442,8 @@ main(int argc, char ** argv)
     }
     printf("OK \n");
 
-
-    /* Run the selected join algorithm */
+    /* Print info */
+    printf("[INFO ] Key size: %u, value size: %u\n", sizeof(intkey_t), sizeof(value_t));
 #if defined(MURMUR)
     printf("[INFO ] Murmur3Hash\n");
 #elif defined(CRCHASH)
@@ -455,6 +461,7 @@ main(int argc, char ** argv)
     printf("[INFO ] Skew: %.2lf\n", cmd_params.skew);
     printf("[INFO ] Running join algorithm %s ...\n", cmd_params.algo->name);
 
+    /* Run the selected join algorithm */
     for (uint32_t run = 0; run < cmd_params.nruns; run++) {
       results = cmd_params.algo->joinAlgo(&relR, &relS, cmd_params.nthreads);
     }

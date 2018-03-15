@@ -44,10 +44,6 @@
     } while(0)
 #endif
 
-#ifndef HASH
-#define HASH(X, MASK, SKIP) (((Hash(X)) & MASK) >> SKIP)
-#endif
-
 // An experimental feature to allocate input relations numa-local
 extern int numalocalize;  /* defined in generator.c */
 extern int nthreads;      /* defined in generator.c */
@@ -57,11 +53,13 @@ typedef struct hashtable {
   tuple_t   *values;
   uint32_t  num_buckets;
   uint32_t  hash_mask;
-  uint32_t  skip_bits;
 } hashtable_t;
 
+#define POW2
+
 #define SET_BIT(bitmap, idx) bitmap[idx >> 3] |= 1 << (idx & 7)
-#define IS_SET(bitmap, idx) ((bitmap[idx >> 3] & (1 << (idx & 7))) != 0)
+//#define IS_SET(bitmap, idx) ((bitmap[idx >> 3] & (1 << (idx & 7))) != 0)
+#define IS_SET(bitmap, idx) ((bitmap[idx >> 3] & (1 << (idx & 7))))
 
 //===----------------------------------------------------------------------===//
 // Allocate a hash table with the given number of buckets
@@ -70,11 +68,11 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
   NEXT_POW_2((ht->num_buckets));
-  ht->num_buckets <<= 1;
+  //ht->num_buckets <<= 1;
 
   /* allocate hashtable buckets cache line aligned */
   if (posix_memalign((void**)&ht->flags, CACHE_LINE_SIZE,
-                     ht->num_buckets / 8 * sizeof(uint8_t))){
+                     (ht->num_buckets / 8) * sizeof(uint8_t))){
     perror("Aligned allocation failed!\n");
     exit(EXIT_FAILURE);
   }
@@ -93,14 +91,16 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
     numa_localize(mem, ntuples, nthreads);
   }
   */
-  uint32_t flag_sz = ht->num_buckets / 8 * sizeof(uint8_t);
+  uint32_t flag_sz = (ht->num_buckets / 8) * sizeof(uint8_t);
   uint32_t buc_sz = ht->num_buckets * sizeof(tuple_t);
-  fprintf(stderr, "HT: %.2lf KB\n", (flag_sz+buc_sz)/1024.0);
+  fprintf(stderr, "HT: %.2lf KB (bitmap: %.2lf KB, values: %.2lf KB), # Buckets: %u, LF: %.2lf\n",
+          (flag_sz+buc_sz)/1024.0, flag_sz / 1024.0, buc_sz / 1024.0,
+          ht->num_buckets,
+          (double)nbuckets/ht->num_buckets);
 
   memset(ht->flags, 0, ht->num_buckets / 8 * sizeof(uint8_t));
   memset(ht->values, 0, ht->num_buckets * sizeof(tuple_t));
-  ht->skip_bits = 0;
-  ht->hash_mask = (ht->num_buckets - 1) << ht->skip_bits;
+  ht->hash_mask = (ht->num_buckets - 1);
   *ppht = ht;
 }
 
@@ -119,10 +119,9 @@ static inline void destroy_hashtable(hashtable_t * ht) {
 
 static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   for(uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    uint32_t idx = Hash(rel->tuples[i].key) & hashmask;
     while (IS_SET(ht->flags, idx)) {
       idx = (idx + 1) & hashmask;
     }
@@ -133,18 +132,25 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
 
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
 
   uint64_t matches = 0;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
-    while (IS_SET(ht->flags, idx) && ht->values[idx].key != rel->tuples[i].key) {
+    uint32_t hash = Hash(rel->tuples[i].key);
+    uint32_t idx = hash & hashmask;
+#if 0
+    // Fast existence check, not actually probe since we don't check for
+    // key or hash equality ....
+    matches += (IS_SET(ht->flags, idx));
+#else
+    while (IS_SET(ht->flags, idx) &&
+           ht->values[idx].key != rel->tuples[i].key) {
       idx = (idx + 1) & hashmask;
     }
     if (IS_SET(ht->flags, idx)) {
       matches++;
     }
+#endif
   }
   return matches;
 }
@@ -152,7 +158,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 //===----------------------------------------------------------------------===//
 // Print out the execution time statistics of the join
 //===----------------------------------------------------------------------===//
-static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
+static inline void print_timing(uint64_t total, double probe_clock, uint64_t build, uint64_t part,
                                 uint64_t num_build, uint64_t num_probe, int64_t result,
                                 struct timeval *start, struct timeval *end) {
   // General
@@ -168,6 +174,7 @@ static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
   uint64_t probe_cycles = total - build;
   double probe_cpt = (double)probe_cycles / (double)num_probe;
   double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
+  double probe_ns = (double)probe_clock/ CLOCKS_PER_SEC / (double)num_probe * 1e9;
 
   // Build info
   uint64_t build_cycles = build - part;
@@ -180,10 +187,13 @@ static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
 
   fprintf(stderr, 
           "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
-          "Probe: %.2lf ms (%.2lf CPT), Build: %.2lf ms (%.2lf CPT), "
+          "Probe: %.2lf ms (%.2lf CPT, %.2lf ns/probe), Build: %.2lf ms (%.2lf CPT), "
           "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
-          result, diff_msec, throughput, probe_usec, 
-          probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
+          result, diff_msec, throughput,
+          probe_usec, probe_cpt, probe_ns,
+          build_usec, build_cpt,
+          part_usec, part_cpt,
+          cyclestuple);
   fflush(stderr);
 }
 
@@ -243,7 +253,9 @@ int64_t PMJ_4(relation_t *relR, relation_t *relS, int nthreads) {
   //////////////////////////////////////
   // PROBE
   //////////////////////////////////////
+  auto start_clock = clock();
   int64_t result = probe_hashtable_st(ht, relS);
+  auto end_clock = clock();
 
 #ifdef PERF_COUNTERS
     PCM_stop();
@@ -257,7 +269,7 @@ int64_t PMJ_4(relation_t *relR, relation_t *relS, int nthreads) {
   stopTimer(&probe_time);
   gettimeofday(&end, NULL);
   // Now print the timing results
-  print_timing(probe_time, build_time, partition_time,
+  print_timing(probe_time, (double)(end_clock-start_clock), build_time, partition_time,
                relR->num_tuples, relS->num_tuples, result, &start, &end);
 #endif
 
