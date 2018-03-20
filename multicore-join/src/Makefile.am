@@ -4,8 +4,9 @@ CC=g++
 
 LANG =
 DEFINES = 
-MYLDFLAGS =
-MISC =  -I/home/pmenon/work/multicore-joins/sniper-6.1/include
+MYLDFLAGS = -L/home/pmenon/work/money-joins/multicore-join/src/judy/judy-1.0.5/src/obj/.libs
+MISC =  -I/home/pmenon/work/multicore-joins/sniper-6.1/include -I/home/pmenon/work/money-joins/multicore-join/src/judy/judy-1.0.5/src
+LIBS = -lJudy
 
 if KEY_8B
 DEFINES += -DKEY_8B
@@ -65,9 +66,16 @@ AM_CXXFLAGS = $(AM_CFLAGS)
 
 AM_LDFLAGS =
 CFLAGS = -O3 -g -ggdb
+#CFLAGS = -O0 -g -ggdb
 CXXFLAGS = -O3
+#CXXFLAGS = -O0
 bin_PROGRAMS = mchashjoins
-mchashjoins_SOURCES =	pmoney_join_9.h pmoney_join_9.c \
+mchashjoins_SOURCES =   judy/judy_join.h judy/judy_join.c \ 
+			nd-hash/ndhash_join.h nd-hash/ndhash_join.c nd-hash/ndHash.h \ 
+			hopscotch/hopscotch_join.h hopscotch/hopscotch_join.c \ 
+			cuckoo/cuckoo_join.h cuckoo/cuckoo_join.c \ 
+			DAWN/dawn_join.h DAWN/dawn_join.c DAWN/CuckooMap.h \
+			pmoney_join_9.h pmoney_join_9.c \
 			TUM/Affinitizer.cpp TUM/Barrier.cpp TUM/NoPartitionJoin.cpp TUM/ProcessorMap.cpp \
 			pmoney_join_8.h pmoney_join_8.c \
 			hyper_join.h hyper_join.c \
@@ -87,5 +95,5 @@ mchashjoins_SOURCES =	pmoney_join_9.h pmoney_join_9.c \
 			lock.h rdtsc.h task_queue.h barrier.h affinity.h\
 			main.c
 
-mchashjoins_LDFLAGS = $(AM_LDFLAGS) $(MYLDFLAGS) -pthread
+mchashjoins_LDFLAGS = $(AM_LDFLAGS) $(MYLDFLAGS) -pthread -lJudy
 mchashjoins_CFLAGS  = $(AM_CFLAGS) $(MISC)

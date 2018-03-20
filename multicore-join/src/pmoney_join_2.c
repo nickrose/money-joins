@@ -61,6 +61,10 @@ typedef struct hashtable {
   uint32_t  hash_mask;
 } hashtable_t;
 
+static inline uint32_t alt_mod(uint32_t x, uint32_t n) {
+  return ((uint64_t) x * (uint64_t) n) >> 32 ;
+}
+
 //===----------------------------------------------------------------------===//
 // Allocate a hash table with the given number of buckets
 //===----------------------------------------------------------------------===//
@@ -138,12 +142,12 @@ static inline void build_hashtable_st(hashtable_t *ht, relation_t *rel) {
 #if 0
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
-  const uint32_t skipbits = ht->skip_bits;
+  //const uint32_t skipbits = ht->skip_bits;
 
   uint64_t matches = 0;
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
-    uint32_t idx = HASH(rel->tuples[i].key, hashmask, skipbits);
+    uint32_t idx = Hash(rel->tuples[i].key) & hashmask;
     uint32_t pos = ht->buckets[idx];
     if (pos) {
       do {
@@ -157,7 +161,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 }
 #endif
 
-#if 0
+#if 1
 static inline int64_t check_next(uint32_t n, tuple_t *tuples, hashtable_t *ht, uint32_t *pos, uint32_t *match) {
   uint32_t k = 0;
   for (uint32_t i = 0; i < n; i++) {
@@ -170,28 +174,24 @@ static inline int64_t check_next(uint32_t n, tuple_t *tuples, hashtable_t *ht, u
   return k;
 }
 
-static inline int64_t vectorized_probe(hashtable_t *ht, tuple_t *tuples, uint32_t n, uint32_t *pos, uint32_t *match) {
+static inline uint32_t lookup_initial(hashtable_t *ht, tuple_t *tuples, uint32_t n, uint32_t *pos, uint32_t *match) {
   const uint32_t hashmask = ht->hash_mask;
-
-  int64_t result = 0; 
   uint32_t k = 0;
-
-  // Initial lookup
   for (uint32_t i = 0; i < n; i++) {
     uint32_t idx = Hash(tuples[i].key) & hashmask;
-    //pos[i] = ht->buckets[idx]; 
-    pos[k] = ht->buckets[idx]; 
+    pos[i] = ht->buckets[idx];
     match[k] = i;
     k += (pos[i] != 0);
   }
+  return k;
+}
 
-#if 0
-  for (uint32_t i = 0; i < n; i++) {
-    pos[k] = pos[i];
-    match[k] = i;
-    k += (pos[i] != 0);
-  }
-#endif
+static inline int64_t vectorized_probe(hashtable_t *ht, tuple_t *tuples, uint32_t n, uint32_t *pos, uint32_t *match) {
+
+  int64_t result = 0; 
+
+  // Initial lookup
+  uint32_t k = lookup_initial(ht, tuples, n, pos, match);
 
   // Recheck
   while (k > 0) {
@@ -217,7 +217,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 }
 #endif
 
-#if 1
+#if 0
 static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   const uint32_t hashmask = ht->hash_mask;
 
@@ -240,44 +240,6 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   return matches;
 }
 #endif
-
-//===----------------------------------------------------------------------===//
-// Print out the execution time statistics of the join
-//===----------------------------------------------------------------------===//
-static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
-                                uint64_t num_build, uint64_t num_probe, int64_t result,
-                                struct timeval *start, struct timeval *end) {
-  // General
-  uint64_t num_tuples = num_probe + num_build;
-  double diff_msec = (((*end).tv_sec*1000L + (*end).tv_usec/1000L)
-                      - ((*start).tv_sec*1000L+(*start).tv_usec/1000L));
-  double cyclestuple = (double)total / (double)(num_tuples);
-
-  // Throughput in million-tuples-per-sec
-  double throughput = (double)num_tuples / (double)diff_msec / 1000.0;
-
-  // Probe info
-  uint64_t probe_cycles = total - build;
-  double probe_cpt = (double)probe_cycles / (double)num_probe;
-  double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
-
-  // Build info
-  uint64_t build_cycles = build - part;
-  double build_cpt = (double)build_cycles / (double)num_probe;
-  double build_usec = ((double)build_cycles / (double)total) * diff_msec;
-
-  // Part
-  double part_cpt = (double)part / (double)num_probe;
-  double part_usec = ((double)part / (double)total) * diff_msec;
-
-  fprintf(stderr, 
-          "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
-          "Probe: %.2lf ms (%.2lf CPT), Build: %.2lf ms (%.2lf CPT), "
-          "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
-          result, diff_msec, throughput, probe_usec, 
-          probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
-  fflush(stderr);
-}
 
 //===----------------------------------------------------------------------===//
 // Run the algorithm

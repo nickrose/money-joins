@@ -16,9 +16,6 @@
 
 const uint32_t INVALID_KEY = 0xffffffff;     // An unusable key we'll treat as a sentinel value
 const uint32_t BUCKET_SIZE = 8;              // Bucket size for cuckoo hash
-const double LOAD_FACTOR = 0.99;             // Load factor used for hash tables
-const uint32_t NUM_KEYS = 20 * 1000 * 1000;  // How many keys to generate if not loading a file
-const uint32_t BUF_SIZE = 8192;              // For reading data
 
 // Fast alternative to modulo from Daniel Lemire
 static inline uint32_t alt_mod(uint32_t x, uint32_t n) {
@@ -67,11 +64,41 @@ public:
     free(buckets_);
   }
 
+  void prefetch_buckets(uint32_t key) {
+    uint32_t hash = Hash(key);
+    uint32_t i1 = alt_mod(hash, num_buckets_);
+    uint32_t i2 = alt_mod(Hash(key ^ hash), num_buckets_);
+    if (i2 == i1) {
+      i2 = (i1 == num_buckets_ - 1) ? 0 : i1 + 1;
+    }
+    __builtin_prefetch(buckets_ + i1, 0, 1);
+    __builtin_prefetch(buckets_ + i2, 0, 1);
+  }
+
   SearchResult get(uint32_t key) {
     uint32_t hash = Hash(key);
     uint32_t i1 = alt_mod(hash, num_buckets_);
-    Bucket *b1 = &buckets_[i1];
+    uint32_t i2 = alt_mod(Hash(key ^ hash), num_buckets_);
+    if (i2 == i1) {
+      i2 = (i1 == num_buckets_ - 1) ? 0 : i1 + 1;
+    }
 
+    // The buckets
+    Bucket *b1 = &buckets_[i1];
+    Bucket *b2 = &buckets_[i2];
+
+#if 1
+    const __m256i vkey = _mm256_set1_epi32(key);
+    for (auto *b : {b1, b2}) {
+      __m256i vbucket = _mm256_load_si256((const __m256i *) &b->keys);
+      __m256i cmp = _mm256_cmpeq_epi32(vkey, vbucket);
+      int mask = _mm256_movemask_epi8(cmp);
+      if (mask != 0) {
+        int index = __builtin_ctz(mask) / 4;
+        return { true, b->values[index] };
+      }
+    }
+#else
     __m256i vkey = _mm256_set1_epi32(key);
     __m256i vbucket = _mm256_load_si256((const __m256i *) &b1->keys);
     __m256i cmp = _mm256_cmpeq_epi32(vkey, vbucket);
@@ -81,11 +108,6 @@ public:
       return { true, b1->values[index] };
     }
 
-    uint32_t i2 = alt_mod(Hash(key ^ hash), num_buckets_);
-    if (i2 == i1) {
-      i2 = (i1 == num_buckets_ - 1) ? 0 : i1 + 1;
-    }
-    Bucket *b2 = &buckets_[i2];
 
     vbucket = _mm256_load_si256((const __m256i *) &b2->keys);
     cmp = _mm256_cmpeq_epi32(vkey, vbucket);
@@ -94,6 +116,7 @@ public:
       int index = __builtin_ctz(mask) / 4;
       return { true, b2->values[index] };
     }
+#endif
 
     return { false, uninitialized_value_ };
   }

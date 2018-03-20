@@ -258,6 +258,7 @@ cpu-mapping.txt
 #include "cuckoo/cuckoo_join.h"
 #include "hopscotch/hopscotch_join.h"
 #include "nd-hash/ndhash_join.h"
+#include "judy/judy_join.h"
 #include "no_partitioning_join.h" /* no partitioning joins: NPO, NPO_st */
 #include "parallel_radix_join.h"  /* parallel radix joins: RJ, PRO, PRH, PRHO */
 #include "generator.h"            /* create_relation_xk */
@@ -330,9 +331,10 @@ static struct algo_t algos [] =
       {"DAWN", &DawnJoin},
       {"Cuckoo", &CuckooJoin},
       {"Hopscotch", &HopscotchJoin},
+      {"NdHash", NdHashJoin},
+      {"Judy", JudyJoin},
       {"PMJ_8", PMJ_8},
       {"PMJ_9", PMJ_9},
-      {"NdHash", NdHashJoin},
       {{0}, 0}
   };
 

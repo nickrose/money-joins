@@ -141,7 +141,7 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 #if 0
     // Fast existence check, not actually probe since we don't check for
     // key or hash equality ....
-    matches += (IS_SET(ht->flags, idx));
+    matches += (IS_SET(ht->flags, idx) != 0);
 #else
     while (IS_SET(ht->flags, idx) &&
            ht->values[idx].key != rel->tuples[i].key) {
@@ -153,48 +153,6 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 #endif
   }
   return matches;
-}
-
-//===----------------------------------------------------------------------===//
-// Print out the execution time statistics of the join
-//===----------------------------------------------------------------------===//
-static inline void print_timing(uint64_t total, double probe_clock, uint64_t build, uint64_t part,
-                                uint64_t num_build, uint64_t num_probe, int64_t result,
-                                struct timeval *start, struct timeval *end) {
-  // General
-  uint64_t num_tuples = num_probe + num_build;
-  double diff_msec = (((*end).tv_sec*1000L + (*end).tv_usec/1000L)
-                      - ((*start).tv_sec*1000L+(*start).tv_usec/1000L));
-  double cyclestuple = (double)total / (double)(num_tuples);
-
-  // Throughput in million-tuples-per-sec
-  double throughput = (double)num_tuples / (double)diff_msec / 1000.0;
-
-  // Probe info
-  uint64_t probe_cycles = total - build;
-  double probe_cpt = (double)probe_cycles / (double)num_probe;
-  double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
-  double probe_ns = (double)probe_clock/ CLOCKS_PER_SEC / (double)num_probe * 1e9;
-
-  // Build info
-  uint64_t build_cycles = build - part;
-  double build_cpt = (double)build_cycles / (double)num_probe;
-  double build_usec = ((double)build_cycles / (double)total) * diff_msec;
-
-  // Part
-  double part_cpt = (double)part / (double)num_probe;
-  double part_usec = ((double)part / (double)total) * diff_msec;
-
-  fprintf(stderr, 
-          "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
-          "Probe: %.2lf ms (%.2lf CPT, %.2lf ns/probe), Build: %.2lf ms (%.2lf CPT), "
-          "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
-          result, diff_msec, throughput,
-          probe_usec, probe_cpt, probe_ns,
-          build_usec, build_cpt,
-          part_usec, part_cpt,
-          cyclestuple);
-  fflush(stderr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -253,9 +211,7 @@ int64_t PMJ_4(relation_t *relR, relation_t *relS, int nthreads) {
   //////////////////////////////////////
   // PROBE
   //////////////////////////////////////
-  auto start_clock = clock();
   int64_t result = probe_hashtable_st(ht, relS);
-  auto end_clock = clock();
 
 #ifdef PERF_COUNTERS
     PCM_stop();
@@ -269,7 +225,7 @@ int64_t PMJ_4(relation_t *relR, relation_t *relS, int nthreads) {
   stopTimer(&probe_time);
   gettimeofday(&end, NULL);
   // Now print the timing results
-  print_timing(probe_time, (double)(end_clock-start_clock), build_time, partition_time,
+  print_timing(probe_time, build_time, partition_time,
                relR->num_tuples, relS->num_tuples, result, &start, &end);
 #endif
 

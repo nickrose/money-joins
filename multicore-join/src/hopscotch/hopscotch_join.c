@@ -64,10 +64,8 @@ struct arg_t {
 static inline std::unique_ptr<Map>
 allocate_hashtable(uint32_t nelems) {
   auto *map = new Map();
-  map->max_load_factor(0.5f);
+  map->max_load_factor(1.0f);
   map->reserve(nelems);
-  fprintf(stderr, "HT size: %.2lf MB\n",
-          ((double)map->size_in_bytes() / 1024.0 / 1024.0));
   return std::unique_ptr<Map>{map};
 }
 
@@ -89,44 +87,6 @@ static inline int64_t probe_hashtable(Map *ht, relation_t *rel) {
     matches += (ht->find(rel->tuples[i].key) != ht->end() ? 1 : 0);
   }
   return matches;
-}
-
-//===----------------------------------------------------------------------===//
-// Print out the execution time statistics of the join
-//===----------------------------------------------------------------------===//
-static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
-                                uint64_t num_build, uint64_t num_probe, int64_t result,
-                                struct timeval *start, struct timeval *end) {
-  // General
-  uint64_t num_tuples = num_probe + num_build;
-  double diff_msec = (((*end).tv_sec*1000L + (*end).tv_usec/1000L)
-                      - ((*start).tv_sec*1000L+(*start).tv_usec/1000L));
-  double cyclestuple = (double)total / (double)(num_tuples);
-
-  // Throughput in million-tuples-per-sec
-  double throughput = (double)num_tuples / (double)diff_msec / 1000.0;
-
-  // Probe info
-  uint64_t probe_cycles = total - build;
-  double probe_cpt = (double)probe_cycles / (double)num_probe;
-  double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
-
-  // Build info
-  uint64_t build_cycles = build - part;
-  double build_cpt = (double)build_cycles / (double)num_probe;
-  double build_usec = ((double)build_cycles / (double)total) * diff_msec;
-
-  // Part
-  double part_cpt = (double)part / (double)num_probe;
-  double part_usec = ((double)part / (double)total) * diff_msec;
-
-  fprintf(stderr, 
-          "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
-          "Probe: %.2lf ms (%.2lf CPT), Build: %.2lf ms (%.2lf CPT), "
-          "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
-          result, diff_msec, throughput, probe_usec, 
-          probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
-  fflush(stderr);
 }
 
 void *hopscotch_thread(void * param) {
@@ -153,6 +113,8 @@ void *hopscotch_thread(void * param) {
   }
 #endif
 
+  uint64_t ht_size_before_insert = args->ht->size_in_bytes();
+
   /* insert tuples from the assigned part of relR to the ht */
   build_hashtable(args->ht, &args->relR);
 
@@ -160,8 +122,10 @@ void *hopscotch_thread(void * param) {
   BARRIER_ARRIVE(args->barrier, rv);
   
   if (args->tid == 0) {
-    fprintf(stderr, "HT size after inserts: %.2lf MB\n",
-            ((double)args->ht->size_in_bytes() / 1024.0 / 1024.0));
+    fprintf(stderr, "HT size before insert: %.2lf, after insert: %.2lf MB (%lu buckets)\n",
+            (double)ht_size_before_insert / 1024.0 / 1024.0,
+            ((double)args->ht->size_in_bytes() / 1024.0 / 1024.0),
+            args->ht->bucket_count());
   }
 
 #ifdef PERF_COUNTERS

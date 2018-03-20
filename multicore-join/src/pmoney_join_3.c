@@ -53,6 +53,7 @@
 #endif
 
 #define POW2
+#define PREFETCH
 
 // An experimental feature to allocate input relations numa-local
 extern int numalocalize;  /* defined in generator.c */
@@ -83,7 +84,7 @@ static inline void allocate_hashtable(hashtable_t ** ppht, uint32_t nbuckets) {
   hashtable_t * ht = (hashtable_t*) malloc(sizeof(hashtable_t));
   ht->num_buckets = nbuckets;
 #ifdef POW2
-  //ht->num_buckets *= 2;
+  ht->num_buckets *= 2;
   NEXT_POW_2((ht->num_buckets));
 #else
   ht->num_buckets = ((double)ht->num_buckets) * 1.2;
@@ -159,6 +160,9 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 
   uint64_t matches = 0;
   //double avg_len = 0.0, min = 100000.0, max = 0.0;
+#ifdef PREFETCH
+  uint32_t pf_idx = 64;
+#endif
 
   for (uint32_t i = 0; i < rel->num_tuples; i++) {
     uint32_t hash = Hash(rel->tuples[i].key);
@@ -167,6 +171,20 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
 #else
     uint32_t idx = alt_mod(hash, ht->num_buckets);
 #endif
+
+    // Do prefetch if enabled
+#ifdef PREFETCH
+    if (pf_idx < rel->num_tuples) {
+      uint32_t pf_hash = Hash(rel->tuples[pf_idx++].key);
+#ifdef POW2
+      uint32_t idx_prefetch = pf_hash & hashmask;
+#else
+      uint32_t idx_prefetch = alt_mod(pf_hash, ht->num_buckets);
+#endif
+      __builtin_prefetch(ht->buckets + idx_prefetch, 0, 1);
+    }
+#endif
+
     //uint32_t len = 1;
     while ((ht->buckets[idx].hash) &&
            (ht->buckets[idx].tuple.key != rel->tuples[i].key)) {
@@ -187,44 +205,6 @@ static inline int64_t probe_hashtable_st(hashtable_t *ht, relation_t *rel) {
   //avg_len /= rel->num_tuples;
   //printf("Avg. len: %.2lf, min: %.2lf, max: %.2lf\n", avg_len, min, max);
   return matches;
-}
-
-//===----------------------------------------------------------------------===//
-// Print out the execution time statistics of the join
-//===----------------------------------------------------------------------===//
-static inline void print_timing(uint64_t total, uint64_t build, uint64_t part,
-                                uint64_t num_build, uint64_t num_probe, int64_t result,
-                                struct timeval *start, struct timeval *end) {
-  // General
-  uint64_t num_tuples = num_probe + num_build;
-  double diff_msec = (((*end).tv_sec*1000L + (*end).tv_usec/1000L)
-                      - ((*start).tv_sec*1000L+(*start).tv_usec/1000L));
-  double cyclestuple = (double)total / (double)(num_tuples);
-
-  // Throughput in million-tuples-per-sec
-  double throughput = (double)num_tuples / (double)diff_msec / 1000.0;
-
-  // Probe info
-  uint64_t probe_cycles = total - build;
-  double probe_cpt = (double)probe_cycles / (double)num_probe;
-  double probe_usec = ((double)probe_cycles / (double)total) * diff_msec;
-
-  // Build info
-  uint64_t build_cycles = build - part;
-  double build_cpt = (double)build_cycles / (double)num_probe;
-  double build_usec = ((double)build_cycles / (double)total) * diff_msec;
-
-  // Part
-  double part_cpt = (double)part / (double)num_probe;
-  double part_usec = ((double)part / (double)total) * diff_msec;
-
-  fprintf(stderr, 
-          "RESULTS: %lu, Runtime: %.2lf ms, Throughput: %.2lf mtps, " 
-          "Probe: %.2lf ms (%.2lf CPT), Build: %.2lf ms (%.2lf CPT), "
-          "Part: %.2lf ms (%.2lf CPT), CPT: %.4lf\n",
-          result, diff_msec, throughput, probe_usec, 
-          probe_cpt, build_usec, build_cpt, part_usec, part_cpt, cyclestuple);
-  fflush(stderr);
 }
 
 //===----------------------------------------------------------------------===//
